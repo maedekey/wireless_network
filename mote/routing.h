@@ -48,6 +48,9 @@ const uint8_t DIS;
 const uint8_t DIO;
 const uint8_t DAO;
 const uint8_t DATA;
+const uint8_t TURNON;
+
+
 
 
 // Size of control messages
@@ -55,6 +58,7 @@ const size_t DIS_size;
 const size_t DIO_size;
 const size_t DAO_size;
 const size_t DATA_size;
+const size_t TURNON_size;
 
 
 
@@ -99,6 +103,7 @@ typedef struct DIO_message {
 typedef struct DAO_message {
 	uint8_t type;
 	linkaddr_t src_addr;
+	uint8_t typeMote;
 } DAO_message_t;
 
 // Represents a DATA message, that carries the data from a sensor mote to the server
@@ -107,6 +112,13 @@ typedef struct DATA_message {
 	linkaddr_t src_addr;
 	uint16_t data;
 } DATA_message_t;
+
+typedef struct TURNON_message {
+	uint8_t type;
+	linkaddr_t dst_addr;
+	uint8_t typeMote;
+} TURNON_message_t;
+
 
 
 ///////////////////
@@ -180,3 +192,7 @@ void send_DATA(mote_t *mote);
  * Forwards a DATA message to the parent of the mote.
  */
 void forward_DATA(DATA_message_t *message, mote_t *mote);
+
+void send_TURNON(linkaddr_t dst_addr, mote_t *mote);
+
+void forward_TURNON(TURNON_message_t *message, mote_t *mote);

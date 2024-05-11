@@ -206,6 +206,13 @@ void runicast_recv(const void* data, uint8_t len, const linkaddr_t *from) {
 		DATA_message_t* message = (DATA_message_t*) data;
 		forward_DATA(message, &mote);
 
+	}else if (type == TURNON){
+		LOG_INFO("received TURNON\n");
+		TURNON_message_t* message = (TURNON_message_t*) data;
+		if (message->dst_addr.u16[0] != mote.addr.u16[0]){
+			LOG_INFO("forwarding TURNON\n");
+			forward_TURNON(message,&mote);		
+		}
 	} else {
 		LOG_INFO("Unknown runicast message received.\n");
 	}

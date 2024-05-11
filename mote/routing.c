@@ -17,6 +17,7 @@ const uint8_t DIS = 2;
 const uint8_t DIO = 3;
 const uint8_t DAO = 4;
 const uint8_t DATA = 0;
+const uint8_t TURNON = 5;
 
 
 
@@ -25,6 +26,7 @@ const size_t DIS_size = sizeof(DIS_message_t);
 const size_t DIO_size = sizeof(DIO_message_t);
 const size_t DAO_size = sizeof(DAO_message_t);
 const size_t DATA_size = sizeof(DATA_message_t);
+const size_t TURNON_size = sizeof(TURNON_message_t);
 
 
 
@@ -194,6 +196,7 @@ void send_DAO(mote_t *mote) {
 	DAO_message_t *message = (DAO_message_t*) malloc(DAO_size);
 	message->type = DAO;
 	message->src_addr = mote->addr;
+	message->typeMote = mote->typeMote;
 	nullnet_buf = (uint8_t*) message;
 	nullnet_len = DAO_size;
 
@@ -285,4 +288,39 @@ void forward_DATA(DATA_message_t *message, mote_t *mote) {
 	NETSTACK_NETWORK.output(&(mote->parent->addr));
 }
 
+void send_TURNON(linkaddr_t dst_addr, mote_t *mote) {
+	// Address of the next-hop mote towards destination
+	linkaddr_t next_hop;
+	if (hashmap_get(mote->routing_table, dst_addr, &next_hop) == MAP_OK) {
+		// Node is correctly in the routing table
+		TURNON_message_t* message = (TURNON_message_t*) malloc(TURNON_size);
+		message->type = TURNON;
+		message->dst_addr = dst_addr;
+		nullnet_buf = (uint8_t*) message;
+		nullnet_len = DATA_size;
+
+		free(message);
+
+		NETSTACK_NETWORK.output(&next_hop);
+	} else {
+		// Destination mote wasn't present in routing table
+		LOG_INFO("Mote not in routing table.\n");
+	}
+}
+
+void forward_TURNON(TURNON_message_t *message, mote_t *mote) {
+	// Address of the next-hop mote towards destination
+	linkaddr_t next_hop;
+	if (hashmap_get(mote->routing_table, message->dst_addr, &next_hop) == MAP_OK) {
+		// Forward to next_hop
+		nullnet_buf = (uint8_t*) message;
+		nullnet_len = TURNON_size;
+
+		free(message);
+
+		NETSTACK_NETWORK.output(&next_hop);
+	} else {
+		LOG_INFO("Error in forwarding TURNON message.\n");
+	}
+}
 

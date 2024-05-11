@@ -105,6 +105,7 @@ void runicast_recv(const void* data, uint8_t len, const linkaddr_t *from) {
 
 		// Address of the mote that sent the DAO packet
 		linkaddr_t child_addr = message->src_addr;
+		LOG_INFO("DAO received, src addr: %u, child : %u\n", child_addr.u16[0], from->u16[0]);
 
 		int err = hashmap_put(mote.routing_table, child_addr, *from);
 		if (err == MAP_NEW) { // A new child was added to the routing table
@@ -113,6 +114,10 @@ void runicast_recv(const void* data, uint8_t len, const linkaddr_t *from) {
 		} else if (err != MAP_NEW && err != MAP_UPDATE) {
 			LOG_INFO("Error adding to routing table\n");
 		}
+		LOG_INFO("dest addr : %u, next hop is : %u \n", child_addr.u16[0], from->u16[0]);
+		hashmap_print(mote.routing_table);
+		LOG_INFO("sending TURNON\n");
+		send_TURNON(child_addr, &mote);
 
 	} else if (type == DATA) {
 		LOG_INFO("DATA received\n");

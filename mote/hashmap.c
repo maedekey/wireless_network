@@ -4,7 +4,7 @@
  * Converts a linkaddr_t to a uint16_t
  */
 uint16_t linkaddr2uint16_t (linkaddr_t x) {
-	return x.u16;
+	return x.u16[0];
 }
 
 /**
