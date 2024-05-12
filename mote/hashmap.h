@@ -50,6 +50,13 @@
  * the key should be the node from which we received a message
  * the data should be the next-hop to get to the key node
  */
+ 
+ typedef struct _ip_address_results{
+  linkaddr_t *ip_addresses;
+  int num_addresses;
+} ip_address_results;
+
+
 typedef struct _hashmap_element{
 	uint16_t key;
 	uint8_t in_use;
@@ -96,6 +103,8 @@ int hashmap_hash(hashmap_map *m, uint16_t key);
  * 		  should not even be there, or MAP_FULL if we have to rehash
  */
 int hashmap_fill_rehash(hashmap_map *m, hashmap_element *old_array, int old_table_size, hashmap_element *new_array, int new_table_size);
+
+ip_address_results get_ip_addresses_by_type(hashmap_map *m, int target_type);
 
 /**
  * Changes the size of the hashmap (at least the double + 1, more if multiple
