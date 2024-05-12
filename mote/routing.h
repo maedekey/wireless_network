@@ -192,6 +192,8 @@ void send_DATA(mote_t *mote);
  */
 void forward_DATA(DATA_message_t *message, mote_t *mote);
 
-void send_TURNON(linkaddr_t dst_addr, mote_t *mote);
+void send_TURNON(uint8_t typeMote, linkaddr_t dest, mote_t *mote);
 
-void forward_TURNON(TURNON_message_t *message, mote_t *mote);
+void forward_TURNON(uint8_t typeMote, mote_t *mote);
+
+unsigned isInArray(linkaddr_t* dst, unsigned effectiveSize, linkaddr_t *val);

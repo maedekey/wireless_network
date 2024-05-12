@@ -339,6 +339,7 @@ void hashmap_print(hashmap_map *m) {
 	}
 }
 
+
 /**
  * Removes entries that have timed out (based on current time and TIMEOUT_CHILDREN)
  * Design choice : unsigned long overflow is not taken into account since it would wrap up in ~= 135 years

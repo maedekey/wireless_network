@@ -272,41 +272,51 @@ void forward_DATA(DATA_message_t *message, mote_t *mote) {
 	NETSTACK_NETWORK.output(&(mote->parent->addr));
 }
 
-void send_TURNON(linkaddr_t dst_addr, mote_t *mote) {
-	/**
-	// Address of the next-hop mote towards destination
-	linkaddr_t next_hop;
-	if (hashmap_get(mote->routing_table, dst_addr, &next_hop) == MAP_OK) {
-		// Node is correctly in the routing table
-		TURNON_message_t* message = (TURNON_message_t*) malloc(TURNON_size);
-		message->type = TURNON;
-		message->dst_addr = dst_addr;
-		nullnet_buf = (uint8_t*) message;
-		nullnet_len = DATA_size;
+void send_TURNON(uint8_t typeMote, linkaddr_t dest, mote_t *mote) {
 
-		free(message);
+//	LOG_INFO("sending turnon to %u\n ", dest.u16[0]);
+	TURNON_message_t* message = (TURNON_message_t*) malloc(TURNON_size);
+	message->type = TURNON;
+	message->typeMote = typeMote;
+	nullnet_buf = (uint8_t*) message;
+	nullnet_len = TURNON_size;
 
-		NETSTACK_NETWORK.output(&next_hop);
-	} else {
-		// Destination mote wasn't present in routing table
-		LOG_INFO("Mote not in routing table.\n");
-	}*/
+	free(message);
+
+	NETSTACK_NETWORK.output(&dest);
 }
 
-void forward_TURNON(TURNON_message_t *message, mote_t *mote) {
-	/**
+void forward_TURNON(uint8_t typeMote, mote_t *mote) {	
 	// Address of the next-hop mote towards destination
-	linkaddr_t next_hop;
-	if (hashmap_get(mote->routing_table, message->dst_addr, &next_hop) == MAP_OK) {
-		// Forward to next_hop
-		nullnet_buf = (uint8_t*) message;
-		nullnet_len = TURNON_size;
-
-		free(message);
-
-		NETSTACK_NETWORK.output(&next_hop);
-	} else {
-		LOG_INFO("Error in forwarding TURNON message.\n");
-	}*/
+	
+	hashmap_element* map = mote->routing_table->data;
+	int i;
+	unsigned index = 0;
+	linkaddr_t dst[mote->routing_table->table_size];
+	for (i = 0; i < mote->routing_table-> table_size; i++) {
+		hashmap_element elem = *(map+i);
+		if (elem.in_use && elem.typeMote == typeMote) {
+//			LOG_INFO("sending 30turnon to %u \n", elem.data.u16[0]);
+			if(!isInArray(dst, index, &elem.data)){
+//				LOG_INFO("sending 10turnon to %u \n", elem.data.u16[0]);			
+				dst[index] = elem.data;
+				index++;
+			}
+		}
+	}
+	for (i = 0; i < index; i++) {
+		send_TURNON(typeMote, dst[i], mote);
+	}
+	memset(dst, 0, sizeof(linkaddr_t)*index);
 }
 
+unsigned isInArray(linkaddr_t* dst, unsigned effectiveSize, linkaddr_t* val){
+	unsigned i = 0;
+	for (i = 0; i <= effectiveSize; i++){
+		LOG_INFO("is %u equal to %u \n", dst[i].u16[0], val->u16[0]);
+		if (dst[i].u16[0] == val->u16[0]){
+			return 1;
+		}
+	}
+	return 0;
+}

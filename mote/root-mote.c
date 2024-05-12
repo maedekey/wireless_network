@@ -114,6 +114,8 @@ void runicast_recv(const void* data, uint8_t len, const linkaddr_t *from) {
 			
 		LOG_INFO("dest addr : %u, next hop is : %u \n", child_addr.u16[0], from->u16[0]);
 		hashmap_print(mote.routing_table);
+		LOG_INFO("Sending turnon\n");
+		forward_TURNON(3, &mote);
 
 	} else if (type == DATA) {
 		LOG_INFO("DATA received\n");
