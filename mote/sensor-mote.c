@@ -57,11 +57,11 @@ void send_callback(void *ptr) {
 
 	// Send the appropriate message
 	if (!mote.in_dodag) {
-		LOG_INFO("Sending DIS, finding a parent\n");
+		//LOG_INFO("Sending DIS, finding a parent\n");
 		send_DIS();
 	} else {
 		send_DIO(&mote);
-		LOG_INFO("DIO sent rank = %u \n", mote.rank);
+		//LOG_INFO("DIO sent rank = %u \n", mote.rank);
 		// Update the trickle timer
 		trickle_update(&t_timer);
 	}
@@ -76,7 +76,7 @@ void send_callback(void *ptr) {
  */
 void DAO_callback(void *ptr) {
 	if (mote.in_dodag) {
-		LOG_INFO("sending DAO\n");
+		//LOG_INFO("sending DAO\n");
 		send_DAO(&mote);
 	}
 	// Restart the timer with a new random value
@@ -176,7 +176,7 @@ void runicast_recv(const void* data, uint8_t len, const linkaddr_t *from) {
 	uint8_t type = *typePtr;
 
 	if (type == DAO) {
-		LOG_INFO("DAO received\n");
+		//LOG_INFO("DAO received\n");
 
 		//LOG_INFO("DAO message received from %u.%u\n", from->u8[0], from->u8[1]);
 
@@ -201,7 +201,7 @@ void runicast_recv(const void* data, uint8_t len, const linkaddr_t *from) {
 		}
 
 	} else if (type == DATA) {
-		LOG_INFO("received DATA\n");
+		//LOG_INFO("received DATA\n");
 		// DATA packet, forward towards root
 		DATA_message_t* message = (DATA_message_t*) data;
 		forward_DATA(message, &mote);
@@ -254,28 +254,28 @@ void broadcast_recv(const void* data, uint16_t len, const linkaddr_t *from) {
 	uint8_t type = *typePtr;
 
 	if (type == DIS) { // DIS message received
-		LOG_INFO("DIS received\n");
+		//LOG_INFO("DIS received\n");
 		// If the mote is already in a DODAG, send DIO packet
 		if (mote.in_dodag) {
 			send_DIO(&mote);
-			LOG_INFO("DIO sent rank = %u \n", mote.rank);
+			//LOG_INFO("DIO sent rank = %u \n", mote.rank);
 		}
 
 	} else if (type == DIO) { // DIO message received
-		LOG_INFO("DIO received, evaluating evaluating the change of a parent \n");
+		//LOG_INFO("DIO received, evaluating evaluating the change of a parent \n");
 		DIO_message_t* message = (DIO_message_t*) data;
 		if (linkaddr_cmp(from, &(mote.parent->addr))) { // DIO message received from parent
-			LOG_INFO("DIO message received from parent \n");
+			//LOG_INFO("DIO message received from parent \n");
 			if (message->rank == INFINITE_RANK) { // Parent has detached from the DODAG
 				detach(&mote);
 				stop_timers();
-				LOG_INFO("Parent detached\n");
+				//LOG_INFO("Parent detached\n");
 			} else { // Update info
 				// Restart timer to delete lost parent
 				ctimer_set(&parent_timer, CLOCK_SECOND*TIMEOUT_PARENT,
 					parent_callback, NULL);
 				if (update_parent(&mote, message->rank, rss, message->typeMote)) {
-					LOG_INFO("Parent update, sending DIO, new rank = %u \n", message->rank);
+					//LOG_INFO("Parent update, sending DIO, new rank = %u \n", message->rank);
 					send_DIO(&mote);
 					// Rank of parent has changed, reset trickle timer
 					reset_timers();
@@ -286,10 +286,10 @@ void broadcast_recv(const void* data, uint16_t len, const linkaddr_t *from) {
 	    		LOG_INFO("DIO received from a new potential parent, it's rank is = %u \n", message->rank);
 			// DIO message received from other mote
 			uint8_t code = choose_parent(&mote, from, message->rank, rss, message->typeMote);
-			LOG_INFO("code parent is = %u \n", code);
+			//LOG_INFO("code parent is = %u \n", code);
 		    	if (code == PARENT_NEW) {
 				reset_timers();
-				LOG_INFO("Parent choosed, sending DAO, new rank = %u \n", message->rank+1);
+				//LOG_INFO("Parent choosed, sending DAO, new rank = %u \n", message->rank+1);
 			    	send_DAO(&mote);
 
 			    	// Start all timers that are used when mote is in DODAG
@@ -307,7 +307,7 @@ void broadcast_recv(const void* data, uint16_t len, const linkaddr_t *from) {
 		    	} else if (code == PARENT_CHANGED) {
 			    	// If parent has changed, send DIO message to update children
 			    	// and DAO to update routing tables, then reset timers
-				LOG_INFO("Parent changed, sending DIO and DAO to update routing and children, new rank is %u \n", mote.rank);
+				//LOG_INFO("Parent changed, sending DIO and DAO to update routing and children, new rank is %u \n", mote.rank);
 
 			    	send_DIO(&mote);
 			    	send_DAO(&mote);
