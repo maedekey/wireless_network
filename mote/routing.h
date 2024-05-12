@@ -49,6 +49,7 @@ const uint8_t DIO;
 const uint8_t DAO;
 const uint8_t DATA;
 const uint8_t TURNON;
+const uint8_t ACK;
 
 
 
@@ -59,6 +60,7 @@ const size_t DIO_size;
 const size_t DAO_size;
 const size_t DATA_size;
 const size_t TURNON_size;
+const size_t ACK_size;
 
 
 
@@ -115,11 +117,17 @@ typedef struct DATA_message {
 
 typedef struct TURNON_message {
 	uint8_t type;
+	linkaddr_t src_addr;
 	linkaddr_t dst_addr;
 	uint8_t typeMote;
 } TURNON_message_t;
 
-
+typedef struct ACK_message {
+	uint8_t type;
+	linkaddr_t dst_addr;
+	linkaddr_t src_addr;
+	uint8_t typeMote;
+} ACK_message_t;
 
 ///////////////////
 ///  FUNCTIONS  ///
@@ -187,12 +195,14 @@ uint8_t choose_parent(mote_t *mote, const linkaddr_t* parent_addr, uint8_t paren
  */
 void send_DATA(mote_t *mote);
 
-
 /**
  * Forwards a DATA message to the parent of the mote.
  */
 void forward_DATA(DATA_message_t *message, mote_t *mote);
 
-void send_TURNON(linkaddr_t dst_addr, mote_t *mote);
+void send_TURNON(linkaddr_t src_addr, linkaddr_t dst_addr, mote_t *mote);
 
 void forward_TURNON(TURNON_message_t *message, mote_t *mote);
+
+void send_ACK(linkaddr_t dest_addr, mote_t *mote);
+void forward_ACK(ACK_message_t *message, mote_t *mote);
