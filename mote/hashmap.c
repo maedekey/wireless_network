@@ -1,3 +1,4 @@
+#include <stdio.h>
 #include "hashmap.h"
 
 /**
@@ -228,6 +229,39 @@ int hashmap_put(hashmap_map *m, linkaddr_t key, linkaddr_t value) {
 	return hashmap_put_int(m, linkaddr2uint16_t(key), value, time, isRehashing);
 }
 
+
+ip_address_results get_ip_addresses_by_type(hashmap_map *m, int target_type) {
+    // Allocate an array to store matching IP addresses
+    linkaddr_t *ip_addresses = malloc(m->table_size * sizeof(linkaddr_t));
+
+    int num_addresses = 0; // Track the number of matching addresses found
+
+    hashmap_element* map = m->data;
+    for (int i = 0; i < m->table_size; i++) {
+        hashmap_element elem = *(map + i);
+        if (elem.in_use && elem.key == target_type) {
+            // Copy the IP address to the results array
+            ip_addresses[num_addresses] = elem.data;
+            num_addresses++;
+        }
+    }
+
+    // Handle the case where no matching addresses were found
+    if (num_addresses == 0) {
+        free(ip_addresses); // Free the unused memory
+        ip_addresses = NULL;  // Return NULL to indicate no matches
+        printf("No elements found with type %d\n", target_type);
+    } else {
+        printf("Found %d elements of type %d:\n", num_addresses, target_type);
+    }
+    ip_address_results results;
+    results.ip_addresses = ip_addresses;
+    results.num_addresses = num_addresses;
+    return results;
+}
+
+
+
 /**
  * $arg will point to the element with the given key
  * Return value : MAP_OK if a value with the given key exists, MAP_MISSING otherwise
@@ -336,6 +370,8 @@ void hashmap_print(hashmap_map *m) {
 		}
 	}
 }
+
+
 
 /**
  * Removes entries that have timed out (based on current time and TIMEOUT_CHILDREN)
