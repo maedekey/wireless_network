@@ -185,7 +185,7 @@ void runicast_recv(const void* data, uint8_t len, const linkaddr_t *from) {
 		// Address of the mote that sent the DAO packet
 		linkaddr_t child_addr = message->src_addr;
 
-		int err = hashmap_put(mote.routing_table, child_addr, *from);
+		int err = hashmap_put(mote.routing_table, child_addr, message->typeMote, *from);
 		if (err == MAP_NEW || err == MAP_UPDATE) {
 
 			// Forward DAO message to parent
@@ -208,11 +208,11 @@ void runicast_recv(const void* data, uint8_t len, const linkaddr_t *from) {
 
 	}else if (type == TURNON){
 		LOG_INFO("received TURNON\n");
-		TURNON_message_t* message = (TURNON_message_t*) data;
-		if (message->dst_addr.u16[0] != mote.addr.u16[0]){
-			LOG_INFO("forwarding TURNON\n");
-			forward_TURNON(message,&mote);		
-		}
+//		TURNON_message_t* message = (TURNON_message_t*) data;
+//		if (message->dst_addr.u16[0] != mote.addr.u16[0]){
+//			LOG_INFO("forwarding TURNON\n");
+//			forward_TURNON(message,&mote);		
+//		}
 	} else {
 		LOG_INFO("Unknown runicast message received.\n");
 	}

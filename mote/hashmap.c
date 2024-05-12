@@ -88,7 +88,7 @@ int hashmap_fill_rehash(hashmap_map *m, hashmap_element *old_array, int old_tabl
 		if (old_array[i].in_use == 0)
 		    continue;
 	    	uint8_t isRehashing = 1;
-		int status = hashmap_put_int(m, old_array[i].key, old_array[i].data, old_array[i].time, isRehashing);
+		int status = hashmap_put_int(m, old_array[i].key, old_array[i].data, old_array[i].typeMote, old_array[i].time, isRehashing);
 		if (status == MAP_FULL) {
 			// have to rehash for more memory !
 			return status;
@@ -178,7 +178,7 @@ hashmap_map * hashmap_new() {
  *		  while already called by rehash, MAP_NEW if an element was added,
  * 		  MAP_UPDATE if an element was updated.
  */
-int hashmap_put_int(hashmap_map *m, uint16_t key, linkaddr_t value, unsigned long time, uint8_t isRehashing) {
+int hashmap_put_int(hashmap_map *m, uint16_t key, linkaddr_t value, uint8_t typeMote, unsigned long time, uint8_t isRehashing) {
 	if (DEBUG_MODE) printf("Trying to put node %u. Rehashing : %d\n", key, isRehashing);
 	if (!isRehashing && DEBUG_MODE) {
 		hashmap_print(m);
@@ -208,6 +208,7 @@ int hashmap_put_int(hashmap_map *m, uint16_t key, linkaddr_t value, unsigned lon
 		m->data[index].in_use = 1;
 	}
 	m->data[index].data = value;
+	m->data[index].typeMote = typeMote;
 	m->data[index].time = time;
 	m->data[index].key = key;
 	if (DEBUG_MODE) printf("Node with key %u added\n",key);
@@ -222,17 +223,17 @@ int hashmap_put_int(hashmap_map *m, uint16_t key, linkaddr_t value, unsigned lon
  * Return value : MAP_OMEM if out of memory, MAP_NEW if an element was added,
  * 		  MAP_UPDATE if an element was updated.
  */
-int hashmap_put(hashmap_map *m, linkaddr_t key, linkaddr_t value) {
+int hashmap_put(hashmap_map *m, linkaddr_t key, uint8_t typeMote, linkaddr_t value) {
 	unsigned long time = clock_seconds();
 	uint8_t isRehashing = 0;
-	return hashmap_put_int(m, linkaddr2uint16_t(key), value, time, isRehashing);
+	return hashmap_put_int(m, linkaddr2uint16_t(key), value, typeMote, time, isRehashing);
 }
 
 /**
  * $arg will point to the element with the given key
  * Return value : MAP_OK if a value with the given key exists, MAP_MISSING otherwise
  */
-int hashmap_get_int(hashmap_map *m, uint16_t key, linkaddr_t *arg) {
+int hashmap_get_int(hashmap_map *m, uint16_t key, uint8_t* typeMote, linkaddr_t *arg) {
 	int curr;
 	int i;
 
@@ -246,6 +247,7 @@ int hashmap_get_int(hashmap_map *m, uint16_t key, linkaddr_t *arg) {
         if (in_use == 1) {
             if (m->data[curr].key == key) {
                 *arg = (m->data[curr].data);
+                *typeMote = (m->data[curr].typeMote);
                 return MAP_OK;
             }
 		}
@@ -261,8 +263,8 @@ int hashmap_get_int(hashmap_map *m, uint16_t key, linkaddr_t *arg) {
  * $arg will point to the element with the given key
  * Return value : MAP_OK if a value with the given key exists, MAP_MISSING otherwise
  */
-int hashmap_get(hashmap_map *m, linkaddr_t key, linkaddr_t *arg) {
-    return hashmap_get_int(m, linkaddr2uint16_t(key), arg);
+int hashmap_get(hashmap_map *m, linkaddr_t key, uint8_t* typeMote, linkaddr_t *arg) {
+    return hashmap_get_int(m, linkaddr2uint16_t(key), typeMote, arg);
 }
 
 /**
@@ -331,8 +333,8 @@ void hashmap_print(hashmap_map *m) {
 	for (i = 0; i < m->table_size; i++) {
 		hashmap_element elem = *(map+i);
 		if (elem.in_use) {
-			printf("index %d : %u; reachable from %u\n",
-				i, elem.key, linkaddr2uint16_t(elem.data));
+			printf("index %d : %u; reachable from %u, typeMote is %u\n",
+				i, elem.key, linkaddr2uint16_t(elem.data), elem.typeMote);
 		}
 	}
 }

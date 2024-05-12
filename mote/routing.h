@@ -115,7 +115,6 @@ typedef struct DATA_message {
 
 typedef struct TURNON_message {
 	uint8_t type;
-	linkaddr_t dst_addr;
 	uint8_t typeMote;
 } TURNON_message_t;
 
