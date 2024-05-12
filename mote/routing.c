@@ -18,6 +18,7 @@ const uint8_t DIO = 3;
 const uint8_t DAO = 4;
 const uint8_t DATA = 0;
 const uint8_t TURNON = 5;
+const uint8_t ACK = 10;
 
 
 
@@ -27,7 +28,10 @@ const size_t DIO_size = sizeof(DIO_message_t);
 const size_t DAO_size = sizeof(DAO_message_t);
 const size_t DATA_size = sizeof(DATA_message_t);
 const size_t TURNON_size = sizeof(TURNON_message_t);
+const size_t ACK_size = sizeof(ACK_message_t);
 
+
+const uint16_t ACK_value = 100;
 
 
 ///////////////////
@@ -288,13 +292,20 @@ void forward_DATA(DATA_message_t *message, mote_t *mote) {
 	NETSTACK_NETWORK.output(&(mote->parent->addr));
 }
 
-void send_TURNON(linkaddr_t dst_addr, mote_t *mote) {
+void forward_ACK(ACK_message_t *message, mote_t *mote){
+	nullnet_buf = (uint8_t*) message;	
+	nullnet_len = ACK_size;
+	NETSTACK_NETWORK.output(&(mote->parent->addr));
+}
+
+void send_TURNON(linkaddr_t src_addr, linkaddr_t dst_addr, mote_t *mote) {
 	// Address of the next-hop mote towards destination
 	linkaddr_t next_hop;
 	if (hashmap_get(mote->routing_table, dst_addr, &next_hop) == MAP_OK) {
 		// Node is correctly in the routing table
 		TURNON_message_t* message = (TURNON_message_t*) malloc(TURNON_size);
 		message->type = TURNON;
+		message->src_addr = src_addr;
 		message->dst_addr = dst_addr;
 		nullnet_buf = (uint8_t*) message;
 		nullnet_len = DATA_size;
@@ -306,6 +317,24 @@ void send_TURNON(linkaddr_t dst_addr, mote_t *mote) {
 		// Destination mote wasn't present in routing table
 		LOG_INFO("Mote not in routing table.\n");
 	}
+}
+
+
+void send_ACK(linkaddr_t dest_addr, mote_t *mote){
+// Address of the next-hop mote towards destination
+	ACK_message_t *message = (ACK_message_t*) malloc(ACK_size);
+	message->type = ACK;
+	message->typeMote = mote->typeMote;
+	message->src_addr = mote->addr;
+	message->dst_addr = dest_addr;
+	
+	nullnet_buf = (uint8_t*) message;
+	nullnet_len = ACK_size;
+
+	free(message);
+
+	NETSTACK_NETWORK.output(&(mote->parent->addr));
+	
 }
 
 void forward_TURNON(TURNON_message_t *message, mote_t *mote) {
@@ -323,4 +352,3 @@ void forward_TURNON(TURNON_message_t *message, mote_t *mote) {
 		LOG_INFO("Error in forwarding TURNON message.\n");
 	}
 }
-
