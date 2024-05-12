@@ -47,7 +47,7 @@ struct ctimer children_timer;
 void send_callback(void *ptr) {
 
 	// Send a DIO message
-	LOG_INFO("DIO sent rank = %u \n", mote.rank);
+	//LOG_INFO("DIO sent rank = %u \n", mote.rank);
 	send_DIO(&mote);
 
 	// Update the trickle timer
@@ -97,7 +97,7 @@ void runicast_recv(const void* data, uint8_t len, const linkaddr_t *from) {
 	uint8_t type = *typePtr;
 
 	if (type == DAO) {
-		LOG_INFO("DAO received\n");
+		//LOG_INFO("DAO received\n");
 
 		//LOG_INFO("DAO message received from %u.%u\n", from->u8[0], from->u8[1]);
 
@@ -105,7 +105,7 @@ void runicast_recv(const void* data, uint8_t len, const linkaddr_t *from) {
 
 		// Address of the mote that sent the DAO packet
 		linkaddr_t child_addr = message->src_addr;
-		LOG_INFO("DAO received, src addr: %u, child : %u\n", child_addr.u16[0], from->u16[0]);
+		//LOG_INFO("DAO received, src addr: %u, child : %u\n", child_addr.u16[0], from->u16[0]);
 
 		int err = hashmap_put(mote.routing_table, child_addr, *from);
 		if (err == MAP_NEW) { // A new child was added to the routing table
@@ -114,17 +114,26 @@ void runicast_recv(const void* data, uint8_t len, const linkaddr_t *from) {
 		} else if (err != MAP_NEW && err != MAP_UPDATE) {
 			LOG_INFO("Error adding to routing table\n");
 		}
-		LOG_INFO("dest addr : %u, next hop is : %u \n", child_addr.u16[0], from->u16[0]);
-		hashmap_print(mote.routing_table);
-		LOG_INFO("sending TURNON\n");
-		send_TURNON(child_addr, &mote);
+		//LOG_INFO("dest addr : %u, next hop is : %u \n", child_addr.u16[0], from->u16[0]);
+		//hashmap_print(mote.routing_table);
 
 	} else if (type == DATA) {
-		LOG_INFO("DATA received\n");
+		//LOG_INFO("DATA received\n");
 		DATA_message_t* message = (DATA_message_t*) data;
-		LOG_INFO("%u/%u/%u\n", (unsigned int) message->type, (unsigned int) message->src_addr.u16, (unsigned int) message->data);
-
-	} else {
+		//LOG_INFO("%u/%u/%u\n", (unsigned int) message->type, (unsigned int) message->src_addr.u16, (unsigned int) message->data);
+	
+	} else if (type == ACK){
+	ACK_message_t* message = (ACK_message_t*) data;
+		if (message->dst_addr.u16[0] != mote.addr.u16[0]){
+			LOG_INFO("forwarding ACK\n");
+			forward_ACK(message,&mote);		
+		}
+		else{
+			printf("Ack received from: \n");
+			printf("%u \n", message->typeMote+1);
+			}
+	}
+	else {
 		LOG_INFO("Unknown runicast message received.\n");
 	}
 
@@ -161,11 +170,11 @@ void broadcast_recv(const void* data, uint16_t len, const linkaddr_t *from) {
 	uint8_t type = *typePtr;
 
 	if (type == DIS) {
-		LOG_INFO("DIS received\n");
+		//LOG_INFO("DIS received\n");
 		//LOG_INFO("DIS packet received.\n");
 		// If the mote is already in a DODAG, send DIO packet
 		if (mote.in_dodag) {
-			LOG_INFO("Sending DIO\n");
+			//LOG_INFO("Sending DIO\n");
 			send_DIO(&mote);
 		}
 	}
@@ -191,6 +200,7 @@ void input_callback(const void *data, uint16_t len,
 // Create and start the process
 PROCESS(root_mote, "Root mote");
 PROCESS(server_communication, "Server communication");
+//PROCESS(sensor_communication, "Sensor communication");
 
 AUTOSTART_PROCESSES(&root_mote, &server_communication);
 
@@ -226,11 +236,44 @@ PROCESS_THREAD(root_mote, ev, data) {
 
 PROCESS_THREAD(server_communication, ev, data) {
     PROCESS_BEGIN();
-
+	serial_line_init();
+  	uart0_set_input(serial_line_input_byte);
     nullnet_set_input_callback(input_callback);
-
     while(1) {
         PROCESS_YIELD();
+        if(ev==serial_line_event_message){
+   	printf("received line: %s\n", (char*) data); 
+	if (strcmp((char*) data, "WATER") == 0) {
+	
+        printf("Received command: WATER\n");
+        hashmap_print(mote.routing_table);
+	   	ip_address_results results = get_ip_addresses_by_type(mote.routing_table, 2);
+	   	linkaddr_t* ip_addresses = results.ip_addresses;
+		int num_addresses = results.num_addresses;
+		for (int i = 0; i < num_addresses; i++) {
+		  // Process each IP address in the array
+		  linkaddr_t current_ip = ip_addresses[i];
+		  printf("IP address %d: %u\n", i + 1, current_ip);  // Example usage
+		  send_TURNON(mote.addr, current_ip, &mote);
+		  
+    		}
+    	}
+    }
     }
     PROCESS_END();
 }
+
+/*PROCESS_THREAD(sensor_communication, ev, data) {
+    PROCESS_BEGIN();
+	serial_line_init();
+  	uart0_set_input(serial_line_input_byte);
+    nullnet_set_input_callback(input_callback);
+    while(true) {
+        
+        printf("in while true");
+        hashmap_print(mote.routing_table);
+        PROCESS_YIELD();
+        break;
+    }
+    PROCESS_END();
+}*/
