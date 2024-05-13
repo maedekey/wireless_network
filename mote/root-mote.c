@@ -112,10 +112,10 @@ void runicast_recv(const void* data, uint8_t len, const linkaddr_t *from) {
 			LOG_INFO("Error adding to routing table\n");
 		}
 			
-		LOG_INFO("dest addr : %u, next hop is : %u \n", child_addr.u16[0], from->u16[0]);
-		hashmap_print(mote.routing_table);
+//		LOG_INFO("dest addr : %u, next hop is : %u \n", child_addr.u16[0], from->u16[0]);
+//		hashmap_print(mote.routing_table);
 		LOG_INFO("Sending turnon\n");
-		forward_TURNON(3, &mote);
+		send_TURNON_root(3, &mote);
 
 	} else if (type == DATA) {
 		LOG_INFO("DATA received\n");
@@ -160,7 +160,6 @@ void broadcast_recv(const void* data, uint16_t len, const linkaddr_t *from) {
 
 	if (type == DIS) {
 		LOG_INFO("DIS received\n");
-		//LOG_INFO("DIS packet received.\n");
 		// If the mote is already in a DODAG, send DIO packet
 		if (mote.in_dodag) {
 			LOG_INFO("Sending DIO\n");

@@ -328,6 +328,19 @@ void broadcast_recv(const void* data, uint16_t len, const linkaddr_t *from) {
 		    	}
 		}
 
+	}else if (type == TURNON){
+		LOG_INFO("received TURNON\n");
+		TURNON_message_t* message = (TURNON_message_t*) data;
+		if (message->typeMote != mote.typeMote){
+			LOG_INFO("forwarding TURNON\n");
+			forward_TURNON(message->typeMote,&mote);		
+		}
+		else{
+//			send_ACK(message->src_addr, &mote);
+			water_plants();
+//			send_ACK(message->src_addr, &mote);
+			  
+		}
 	} else { // Unknown message received
 		LOG_INFO("Unknown broadcast message received.\n");
 	}

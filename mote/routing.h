@@ -197,3 +197,5 @@ void send_TURNON(uint8_t typeMote, linkaddr_t dest, mote_t *mote);
 void forward_TURNON(uint8_t typeMote, mote_t *mote);
 
 unsigned isInArray(linkaddr_t* dst, unsigned effectiveSize, linkaddr_t *val);
+
+void send_TURNON_root(uint8_t typeMote, mote_t *mote);

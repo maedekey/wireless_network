@@ -274,7 +274,7 @@ void forward_DATA(DATA_message_t *message, mote_t *mote) {
 
 void send_TURNON(uint8_t typeMote, linkaddr_t dest, mote_t *mote) {
 
-//	LOG_INFO("sending turnon to %u\n ", dest.u16[0]);
+	LOG_INFO("sending turnon to %u\n ", dest.u16[0]);
 	TURNON_message_t* message = (TURNON_message_t*) malloc(TURNON_size);
 	message->type = TURNON;
 	message->typeMote = typeMote;
@@ -284,6 +284,24 @@ void send_TURNON(uint8_t typeMote, linkaddr_t dest, mote_t *mote) {
 	free(message);
 
 	NETSTACK_NETWORK.output(&dest);
+	
+
+}
+
+void send_TURNON_root(uint8_t typeMote, mote_t *mote) {
+
+	LOG_INFO("sending turnon in broadcast ");
+	TURNON_message_t* message = (TURNON_message_t*) malloc(TURNON_size);
+	message->type = TURNON;
+	message->typeMote = typeMote;
+	nullnet_buf = (uint8_t*) message;
+	nullnet_len = TURNON_size;
+
+	free(message);
+
+	NETSTACK_NETWORK.output(NULL);
+	
+
 }
 
 void forward_TURNON(uint8_t typeMote, mote_t *mote) {	
@@ -296,9 +314,7 @@ void forward_TURNON(uint8_t typeMote, mote_t *mote) {
 	for (i = 0; i < mote->routing_table-> table_size; i++) {
 		hashmap_element elem = *(map+i);
 		if (elem.in_use && elem.typeMote == typeMote) {
-//			LOG_INFO("sending 30turnon to %u \n", elem.data.u16[0]);
 			if(!isInArray(dst, index, &elem.data)){
-//				LOG_INFO("sending 10turnon to %u \n", elem.data.u16[0]);			
 				dst[index] = elem.data;
 				index++;
 			}
@@ -313,7 +329,6 @@ void forward_TURNON(uint8_t typeMote, mote_t *mote) {
 unsigned isInArray(linkaddr_t* dst, unsigned effectiveSize, linkaddr_t* val){
 	unsigned i = 0;
 	for (i = 0; i <= effectiveSize; i++){
-		LOG_INFO("is %u equal to %u \n", dst[i].u16[0], val->u16[0]);
 		if (dst[i].u16[0] == val->u16[0]){
 			return 1;
 		}

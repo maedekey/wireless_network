@@ -315,7 +315,14 @@ void broadcast_recv(const void* data, uint16_t len, const linkaddr_t *from) {
 		    	}
 		}
 
-	} else { // Unknown message received
+	} else if (type == TURNON){
+		TURNON_message_t* message = (TURNON_message_t*) data;
+		LOG_INFO("received TURNON\n");
+		if (message->typeMote != mote.typeMote){		
+			LOG_INFO("Sending turnon\n");
+			forward_TURNON(message->typeMote,&mote);
+		}	
+	}else { // Unknown message received
 		LOG_INFO("Unknown broadcast message received.\n");
 	}
 
