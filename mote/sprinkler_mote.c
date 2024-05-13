@@ -192,7 +192,7 @@ void runicast_recv(const void* data, uint8_t len, const linkaddr_t *from) {
 		// Address of the mote that sent the DAO packet
 		linkaddr_t child_addr = message->src_addr;
 
-		int err = hashmap_put(mote.routing_table, child_addr, *from);
+		int err = hashmap_put(mote.routing_table, child_addr, message->typeMote, *from);
 		if (err == MAP_NEW || err == MAP_UPDATE) {
 
 			// Forward DAO message to parent
@@ -217,13 +217,16 @@ void runicast_recv(const void* data, uint8_t len, const linkaddr_t *from) {
 		LOG_INFO("received TURNON\n");
 		TURNON_message_t* message = (TURNON_message_t*) data;
 		if (message->dst_addr.u16[0] != mote.addr.u16[0]){
+		//le sensor recevra toujours le bon turnon. par contre pas le subgateway, qui est un type de root mote. -> faut mettre le forward turnon dans le root mote. Plus tard, faudra regarder si sa propre addresse ip !=  message->dst_addr
 			LOG_INFO("forwarding TURNON\n");
-			forward_TURNON(message,&mote);		
+			forward_TURNON(message, &mote);		
 		}
 		else{
-			send_ACK(message->src_addr, &mote);
+			LOG_INFO("sending ACK\n");
+			send_ACK(3, message->dst_addr, message->src_addr, mote.parent->addr);
 			water_plants();
-			send_ACK(message->src_addr, &mote);
+			LOG_INFO("sending ACK\n");
+			send_ACK(3, message->dst_addr, message->src_addr, mote.parent->addr);
 			  
 		}
 	} else {
@@ -360,7 +363,7 @@ AUTOSTART_PROCESSES(&sensor_mote);
 PROCESS_THREAD(sensor_mote, ev, data) {
 
 	if (!created) {
-		init_mote(&mote, 1);
+		init_mote(&mote, 3);
 		trickle_init(&t_timer);
 		created = 1;
 	}

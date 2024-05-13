@@ -17,8 +17,9 @@ const uint8_t DIS = 2;
 const uint8_t DIO = 3;
 const uint8_t DAO = 4;
 const uint8_t DATA = 0;
+const uint8_t ACK = 7;
 const uint8_t TURNON = 5;
-const uint8_t ACK = 10;
+
 
 
 
@@ -28,10 +29,7 @@ const size_t DIO_size = sizeof(DIO_message_t);
 const size_t DAO_size = sizeof(DAO_message_t);
 const size_t DATA_size = sizeof(DATA_message_t);
 const size_t TURNON_size = sizeof(TURNON_message_t);
-const size_t ACK_size = sizeof(ACK_message_t);
 
-
-const uint16_t ACK_value = 100;
 
 
 ///////////////////
@@ -50,36 +48,20 @@ void init_mote(mote_t *mote, uint8_t typeMote) {
 	mote->routing_table = hashmap_new();
 
 	if (!mote->routing_table) {
-		LOG_INFO("init_mote() of mote with address %u.%u : could not allocate enough memory\n", (mote->addr).u8[0], (mote->addr).u8[1]);
+		//LOG_INFO("init_mote() of mote with address %u.%u : could not allocate enough memory\n", (mote->addr).u8[0], (mote->addr).u8[1]);
 		exit(-1);
 	}
-
-	mote->in_dodag = 0;
-	mote->rank = INFINITE_RANK;
+	if (typeMote == 0){
+		mote->in_dodag = 1;
+		mote->rank = 0;
+	}else{
+		mote->in_dodag = 0;
+		mote->rank = INFINITE_RANK;		
+	}
 	mote->typeMote = typeMote;
 
 }
 
-/**
- * Initializes the attributes of a root mote.
- */
-void init_root(mote_t *mote, uint8_t typeMote) {
-
-	// Set the Rime address
-	linkaddr_copy(&(mote->addr), &linkaddr_node_addr);
-
-	// Initialize routing table
-	mote->routing_table = hashmap_new();
-
-	if (!mote->routing_table) {
-		LOG_INFO("init_root() of mote with address %u.%u : could not allocate enough memory\n", (mote->addr).u8[0], (mote->addr).u8[1]);
-		exit(-1);
-	}
-
-	mote->in_dodag = 1;
-	mote->rank = 0;
-	mote->typeMote = typeMote;
-}
 
 /**
  * Initializes the parent of a mote.
@@ -228,7 +210,7 @@ void forward_DAO(DAO_message_t *message, mote_t *mote) {
  * in an unstable network.
  */
 uint8_t is_better_parent(mote_t *mote, uint8_t parent_rank, signed char rss, uint8_t typeMote) {
-	if(mote->typeMote == 2 && typeMote > 0){
+	if(mote->typeMote != 0){
 		if (mote->parent->typeMote == typeMote){
 			uint8_t lower_rank = parent_rank < mote->parent->rank;
 			uint8_t same_rank = parent_rank == mote->parent->rank;
@@ -248,7 +230,7 @@ uint8_t is_better_parent(mote_t *mote, uint8_t parent_rank, signed char rss, uin
  */
 uint8_t choose_parent(mote_t *mote, const linkaddr_t* parent_addr, uint8_t parent_rank, signed char rss, uint8_t typeMote) {
 	if (!mote->in_dodag) {
-		if (!(mote->typeMote == 2 && typeMote == 0)){ 
+		if (mote->typeMote != 0){ 
 			// Mote not in DODAG yet, initialize parent
 			init_parent(mote, parent_addr, parent_rank, rss, typeMote);
 			return PARENT_NEW;
@@ -292,63 +274,80 @@ void forward_DATA(DATA_message_t *message, mote_t *mote) {
 	NETSTACK_NETWORK.output(&(mote->parent->addr));
 }
 
+void send_TURNON(uint8_t typeMote, linkaddr_t src_addr, linkaddr_t dst_addr, linkaddr_t dest) {
+
+//	LOG_INFO("sending turnon to %u\n ", dest.u16[0]);
+	TURNON_message_t* message = (TURNON_message_t*) malloc(TURNON_size);
+	message->type = TURNON;
+	message->typeMote = typeMote;
+	message->src_addr = src_addr;
+	message->dst_addr = dst_addr;
+	nullnet_buf = (uint8_t*) message;
+	nullnet_len = TURNON_size;
+
+	free(message);
+
+	NETSTACK_NETWORK.output(&dest);
+}
+
+
+void forward_TURNON(TURNON_message_t *message, mote_t *mote) {	
+	uint8_t typeMote = message->typeMote;
+	// Address of the next-hop mote towards destination
+	
+	hashmap_element* map = mote->routing_table->data;
+	int i;
+	unsigned index = 0;
+	linkaddr_t dst[mote->routing_table->table_size];
+	for (i = 0; i < mote->routing_table-> table_size; i++) {
+		hashmap_element elem = *(map+i);
+		if (elem.in_use && elem.typeMote == typeMote) { //todo: check les addresses aussi
+//			LOG_INFO("sending 30turnon to %u \n", elem.data.u16[0]);
+			if(!isInArray(dst, index, &elem.data)){
+//				LOG_INFO("sending 10turnon to %u \n", elem.data.u16[0]);			
+				dst[index] = elem.data;
+				index++;
+			}
+		}
+	}
+	for (i = 0; i < index; i++) {
+	//uint8_t typeMote, linkaddr_t src_addr, linkaddr_t dst_addr, linkaddr_t dest
+		send_TURNON(typeMote, message->src_addr ,message->dst_addr, dst[i]);
+	}
+	memset(dst, 0, sizeof(linkaddr_t)*index);
+	
+}
+
+
+void send_ACK(uint8_t typeMote, linkaddr_t src_addr, linkaddr_t dst_addr, linkaddr_t dest) {
+
+//	LOG_INFO("sending turnon to %u\n ", dest.u16[0]);
+	ACK_message_t* message = (ACK_message_t*) malloc(ACK_size);
+	message->type = ACK;
+	message->typeMote = typeMote;
+	message->src_addr = src_addr;
+	message->dst_addr = dst_addr;
+	nullnet_buf = (uint8_t*) message;
+	nullnet_len = TURNON_size;
+
+	free(message);
+
+	NETSTACK_NETWORK.output(&dest);
+}
+
 void forward_ACK(ACK_message_t *message, mote_t *mote){
 	nullnet_buf = (uint8_t*) message;	
 	nullnet_len = ACK_size;
 	NETSTACK_NETWORK.output(&(mote->parent->addr));
 }
 
-void send_TURNON(linkaddr_t src_addr, linkaddr_t dst_addr, mote_t *mote) {
-	// Address of the next-hop mote towards destination
-	linkaddr_t next_hop;
-	if (hashmap_get(mote->routing_table, dst_addr, &next_hop) == MAP_OK) {
-		// Node is correctly in the routing table
-		TURNON_message_t* message = (TURNON_message_t*) malloc(TURNON_size);
-		message->type = TURNON;
-		message->src_addr = src_addr;
-		message->dst_addr = dst_addr;
-		nullnet_buf = (uint8_t*) message;
-		nullnet_len = DATA_size;
-
-		free(message);
-
-		NETSTACK_NETWORK.output(&next_hop);
-	} else {
-		// Destination mote wasn't present in routing table
-		LOG_INFO("Mote not in routing table.\n");
+unsigned isInArray(linkaddr_t* dst, unsigned effectiveSize, linkaddr_t* val){
+	unsigned i = 0;
+	for (i = 0; i <= effectiveSize; i++){
+		//LOG_INFO("is %u equal to %u \n", dst[i].u16[0], val->u16[0]);
+		if (dst[i].u16[0] == val->u16[0]){
+			return 1;
+		}
 	}
-}
-
-
-void send_ACK(linkaddr_t dest_addr, mote_t *mote){
-// Address of the next-hop mote towards destination
-	ACK_message_t *message = (ACK_message_t*) malloc(ACK_size);
-	message->type = ACK;
-	message->typeMote = mote->typeMote;
-	message->src_addr = mote->addr;
-	message->dst_addr = dest_addr;
-	
-	nullnet_buf = (uint8_t*) message;
-	nullnet_len = ACK_size;
-
-	free(message);
-
-	NETSTACK_NETWORK.output(&(mote->parent->addr));
-	
-}
-
-void forward_TURNON(TURNON_message_t *message, mote_t *mote) {
-	// Address of the next-hop mote towards destination
-	linkaddr_t next_hop;
-	if (hashmap_get(mote->routing_table, message->dst_addr, &next_hop) == MAP_OK) {
-		// Forward to next_hop
-		nullnet_buf = (uint8_t*) message;
-		nullnet_len = TURNON_size;
-
-		free(message);
-
-		NETSTACK_NETWORK.output(&next_hop);
-	} else {
-		LOG_INFO("Error in forwarding TURNON message.\n");
-	}
+	return 0;
 }

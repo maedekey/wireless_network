@@ -46,21 +46,22 @@
  *  STRUCTURES DEFINITION
  * ======================= */
 
-/** We need to keep keys and values
- * the key should be the node from which we received a message
- * the data should be the next-hop to get to the key node
- */
- 
+
  typedef struct _ip_address_results{
   linkaddr_t *ip_addresses;
   int num_addresses;
 } ip_address_results;
 
 
+/** We need to keep keys and values
+ * the key should be the node from which we received a message
+ * the data should be the next-hop to get to the key node
+ */
 typedef struct _hashmap_element{
 	uint16_t key;
 	uint8_t in_use;
 	linkaddr_t data;
+	uint8_t typeMote;
 	unsigned long time;
 } hashmap_element;
 
@@ -72,6 +73,12 @@ typedef struct _hashmap_map{
 	int size;
 	hashmap_element *data;
 } hashmap_map;
+
+typedef struct map_iter_t{
+    hashmap_map* hashmap;
+    hashmap_element *node;
+    unsigned index;
+} map_iter_t;
 
 /* ============================
  *  INNER FUNCTIONS DEFINITION 
@@ -104,8 +111,6 @@ int hashmap_hash(hashmap_map *m, uint16_t key);
  */
 int hashmap_fill_rehash(hashmap_map *m, hashmap_element *old_array, int old_table_size, hashmap_element *new_array, int new_table_size);
 
-ip_address_results get_ip_addresses_by_type(hashmap_map *m, int target_type);
-
 /**
  * Changes the size of the hashmap (at least the double + 1, more if multiple
  * rehashes have to be made) and rehashes all the elements.
@@ -128,13 +133,13 @@ extern hashmap_map *hashmap_new();
  *		  while already called by rehash, MAP_NEW if an element was added,
  * 		  MAP_UPDATE if an element was updated.
  */
-extern int hashmap_put_int(hashmap_map *m, uint16_t key, linkaddr_t value, unsigned long time, uint8_t isRehashing);
+extern int hashmap_put_int(hashmap_map *m, uint16_t key, linkaddr_t value, uint8_t typeMote, unsigned long time, uint8_t isRehashing);
 
 /**
  * $arg will point to the element with the given key
  * Return value : MAP_OK if a value with the given key exists, MAP_MISSING otherwise
  */
-extern int hashmap_get_int(hashmap_map *m, uint16_t key, linkaddr_t *arg);
+extern int hashmap_get_int(hashmap_map *m, uint16_t key, uint8_t* typeMote, linkaddr_t *arg);
 
 /**
  * Removes an element with that key from the map
@@ -145,8 +150,8 @@ extern int hashmap_remove_int(hashmap_map *m, uint16_t key);
  * The following functions are calling the upper ones with slightly modified arguments
  * These function are easier to call
  */
-extern int hashmap_put(hashmap_map *m, linkaddr_t key, linkaddr_t value);
-extern int hashmap_get(hashmap_map *m, linkaddr_t key, linkaddr_t *arg);
+extern int hashmap_put(hashmap_map *m, linkaddr_t key, uint8_t typeMote, linkaddr_t value);
+extern int hashmap_get(hashmap_map *m, linkaddr_t key, uint8_t* typeMote, linkaddr_t *arg);
 extern int hashmap_remove(hashmap_map *m, linkaddr_t key);
 
 /**
@@ -163,6 +168,8 @@ extern int hashmap_length(hashmap_map *m);
  * Prints the content of the hashmap
  */
 extern void hashmap_print(hashmap_map *m);
+
+ip_address_results get_ip_addresses_by_type(hashmap_map *m, int target_type);
 
 /**
  * Removes entries that have timed out (based on arguments current_time and timeout_delay)

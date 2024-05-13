@@ -95,45 +95,50 @@ void runicast_recv(const void* data, uint8_t len, const linkaddr_t *from) {
 
 	uint8_t* typePtr = (uint8_t*) data;
 	uint8_t type = *typePtr;
-
 	if (type == DAO) {
-		//LOG_INFO("DAO received\n");
-
-		//LOG_INFO("DAO message received from %u.%u\n", from->u8[0], from->u8[1]);
-
 		DAO_message_t* message = (DAO_message_t*) data;
 
 		// Address of the mote that sent the DAO packet
 		linkaddr_t child_addr = message->src_addr;
 		//LOG_INFO("DAO received, src addr: %u, child : %u\n", child_addr.u16[0], from->u16[0]);
 
-		int err = hashmap_put(mote.routing_table, child_addr, *from);
+		int err = hashmap_put(mote.routing_table, child_addr, message->typeMote, *from);
+		
 		if (err == MAP_NEW) { // A new child was added to the routing table
 			// Reset trickle timer and sending timer
 			reset_timers(&t_timer);
 		} else if (err != MAP_NEW && err != MAP_UPDATE) {
 			LOG_INFO("Error adding to routing table\n");
 		}
+			
 		//LOG_INFO("dest addr : %u, next hop is : %u \n", child_addr.u16[0], from->u16[0]);
 		//hashmap_print(mote.routing_table);
+		//LOG_INFO("Sending turnon\n");
+		//forward_TURNON(3, &mote);
 
 	} else if (type == DATA) {
 		//LOG_INFO("DATA received\n");
 		DATA_message_t* message = (DATA_message_t*) data;
 		//LOG_INFO("%u/%u/%u\n", (unsigned int) message->type, (unsigned int) message->src_addr.u16, (unsigned int) message->data);
-	
+
 	} else if (type == ACK){
-	ACK_message_t* message = (ACK_message_t*) data;
+		ACK_message_t* message = (ACK_message_t*) data;
 		if (message->dst_addr.u16[0] != mote.addr.u16[0]){
 			LOG_INFO("forwarding ACK\n");
 			forward_ACK(message,&mote);		
 		}
 		else{
 			printf("Ack received from: \n");
-			printf("%u \n", message->typeMote+1);
+			printf("%u \n", message->typeMote);
 			}
-	}
-	else {
+	
+	} else if (type == TURNON) {
+		ACK_message_t* message = (ACK_message_t*) data;
+		printf("TURNON received from: \n");
+		printf("%u \n", message->typeMote);
+		printf("%d, %d \n", ACK, type);
+	} else{
+		printf("%d, %d \n", ACK, type);
 		LOG_INFO("Unknown runicast message received.\n");
 	}
 
@@ -200,14 +205,13 @@ void input_callback(const void *data, uint16_t len,
 // Create and start the process
 PROCESS(root_mote, "Root mote");
 PROCESS(server_communication, "Server communication");
-//PROCESS(sensor_communication, "Sensor communication");
 
 AUTOSTART_PROCESSES(&root_mote, &server_communication);
 
 PROCESS_THREAD(root_mote, ev, data) {
 
 	if (!created) {
-		init_root(&mote, 0);
+		init_mote(&mote, 0);
 		trickle_init(&t_timer);
 		created = 1;
 	}
@@ -247,14 +251,15 @@ PROCESS_THREAD(server_communication, ev, data) {
 	
         printf("Received command: WATER\n");
         hashmap_print(mote.routing_table);
-	   	ip_address_results results = get_ip_addresses_by_type(mote.routing_table, 2);
+	   	ip_address_results results = get_ip_addresses_by_type(mote.routing_table, 3);
 	   	linkaddr_t* ip_addresses = results.ip_addresses;
 		int num_addresses = results.num_addresses;
 		for (int i = 0; i < num_addresses; i++) {
 		  // Process each IP address in the array
 		  linkaddr_t current_ip = ip_addresses[i];
-		  printf("IP address %d: %u\n", i + 1, current_ip);  // Example usage
-		  send_TURNON(mote.addr, current_ip, &mote);
+		  printf("IP address %d: %u\n", i + 1, current_ip);  
+		  // Le gateway enverra au sub gateway le turnon. le 3e paramètre est l'addresse du sensor cible, et le 4e paramètre est l'addresse du subgateway (donc, son fils). pour tester plus facilement, ici, on met current_ip partout.
+		  send_TURNON(3, mote.addr, current_ip, current_ip);
 		  
     		}
     	}
@@ -262,18 +267,3 @@ PROCESS_THREAD(server_communication, ev, data) {
     }
     PROCESS_END();
 }
-
-/*PROCESS_THREAD(sensor_communication, ev, data) {
-    PROCESS_BEGIN();
-	serial_line_init();
-  	uart0_set_input(serial_line_input_byte);
-    nullnet_set_input_callback(input_callback);
-    while(true) {
-        
-        printf("in while true");
-        hashmap_print(mote.routing_table);
-        PROCESS_YIELD();
-        break;
-    }
-    PROCESS_END();
-}*/
