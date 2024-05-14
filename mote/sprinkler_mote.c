@@ -14,9 +14,6 @@
 #define LOG_MODULE "App"
 #define LOG_LEVEL LOG_LEVEL_INFO
 
-// Period of sending data messages [sec]
-#define DATA_PERIOD 60
-
 
 
 // Represents the attributes of this mote
@@ -46,8 +43,28 @@ struct ctimer parent_timer;
 // Callback timer to delete unresponsive children
 struct ctimer children_timer;
 
-// Callback timer to send data
-struct ctimer data_timer;
+// Callback timer to turn off the sprinkler
+struct ctimer water_timer;
+
+
+
+
+
+/**
+Function that simulates watering the plants
+*/
+
+void stop_water(){
+	printf("stopping water!!\n");
+	ctimer_stop(&water_timer);
+}
+
+
+void water_plants(){
+	printf("watering plants!!\n");
+	ctimer_set(&water_timer,CLOCK_SECOND * TIMEOUT_WATER, stop_water, NULL);
+	send_ACK(&mote);
+}
 
 /**
  * Callback function that will send the appropriate message when ctimer has expired.
@@ -105,7 +122,6 @@ void stop_timers() {
 	ctimer_stop(&DAO_timer);
 	ctimer_stop(&parent_timer);
 	ctimer_stop(&children_timer);
-	ctimer_stop(&data_timer);
 }
 
 /**
@@ -139,26 +155,6 @@ void children_callback(void *ptr) {
 
 }
 
-/**
- * Callback function that will send a data message to the parent.
- */
-void data_callback(void *ptr) {
-	// Send the data to parent if mote is in DODAG
-	if (mote.in_dodag) {
-		send_DATA(&mote);
-	}
-
-	// Restart the timer with a new random value
-	ctimer_set(&data_timer, CLOCK_SECOND*(DATA_PERIOD-5) + (random_rand() % (CLOCK_SECOND*10)),
-		data_callback, NULL);
-}
-
-/**
- * Callback function that will turn off the green LED.
- */
-void open_callback(void *ptr) {
-	leds_off(LEDS_GREEN);
-}
 
 
 
@@ -167,12 +163,7 @@ void open_callback(void *ptr) {
 /////////////////////////////
 
 
-/**
-Function that simulates watering the plants
-*/
-void water_plants(){
-	printf("watering plants!!\n");
-}
+
 
 /**
  * Callback function, called when an unicast packet is received
@@ -207,25 +198,23 @@ void runicast_recv(const void* data, uint8_t len, const linkaddr_t *from) {
 			LOG_INFO("Error adding to routing table\n");
 		}
 
-	} else if (type == DATA) {
-		//LOG_INFO("received DATA\n");
-		// DATA packet, forward towards root
-		DATA_message_t* message = (DATA_message_t*) data;
-		forward_DATA(message, &mote);
+	} else if (type == LIGHT) {
+		//LOG_INFO("received LIGHT\n");
+		// LIGHT packet, forward towards root
+		LIGHT_message_t* message = (LIGHT_message_t*) data;
+		forward_LIGHT(message, &mote);
 
 	}else if (type == TURNON){
 		LOG_INFO("received TURNON\n");
 		TURNON_message_t* message = (TURNON_message_t*) data;
 		if (message->typeMote != mote.typeMote){
-			//LOG_INFO("forwarding TURNON\n");
-			//forward_TURNON(message->typeMote,&mote);		
+			LOG_INFO("forwarding TURNON\n");
+			forward_TURNON(message->typeMote,&mote);		
 		}
 		else{
-			
 			send_ACK(&mote);
 			water_plants();
 			send_ACK(&mote);
-			  
 		}
 	} else {
 		LOG_INFO("Unknown runicast message received.\n");
@@ -300,10 +289,9 @@ void broadcast_recv(const void* data, uint16_t len, const linkaddr_t *from) {
 	    		LOG_INFO("DIO received from a new potential parent, it's rank is = %u \n", message->rank);
 			// DIO message received from other mote
 			uint8_t code = choose_parent(&mote, from, message->rank, rss, message->typeMote);
-			//LOG_INFO("code parent is = %u \n", code);
 		    	if (code == PARENT_NEW) {
 				reset_timers();
-				//LOG_INFO("Parent choosed, sending DAO, new rank = %u \n", message->rank+1);
+				LOG_INFO("Parent choosed, sending DAO, new rank = %u \n", message->rank+1);
 			    	send_DAO(&mote);
 
 			    	// Start all timers that are used when mote is in DODAG
@@ -315,13 +303,11 @@ void broadcast_recv(const void* data, uint16_t len, const linkaddr_t *from) {
 						parent_callback, NULL);
 					ctimer_set(&children_timer, CLOCK_SECOND*TIMEOUT_CHILDREN,
 						children_callback, NULL);
-					ctimer_set(&data_timer, CLOCK_SECOND*(DATA_PERIOD-5) + (random_rand() % (CLOCK_SECOND*10)),
-						data_callback, NULL);
 
 		    	} else if (code == PARENT_CHANGED) {
 			    	// If parent has changed, send DIO message to update children
 			    	// and DAO to update routing tables, then reset timers
-				//LOG_INFO("Parent changed, sending DIO and DAO to update routing and children, new rank is %u \n", mote.rank);
+				LOG_INFO("Parent changed, sending DIO and DAO to update routing and children, new rank is %u \n", mote.rank);
 
 			    	send_DIO(&mote);
 			    	send_DAO(&mote);
@@ -336,10 +322,7 @@ void broadcast_recv(const void* data, uint16_t len, const linkaddr_t *from) {
 			forward_TURNON(message->typeMote,&mote);		
 		}
 		else{
-			send_ACK(&mote);
-			water_plants();
-			send_ACK(&mote);
-			  
+			water_plants();  
 		}
 	} else { // Unknown message received
 		LOG_INFO("Unknown broadcast message received.\n");

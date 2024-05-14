@@ -42,26 +42,29 @@
 // Timeout value to detach from unresponsive parent
 #define TIMEOUT_PARENT 50
 
+#define TIMEOUT_LIGHT 120
+
+#define TIMEOUT_WATER 180
+
+
+
 
 // Values for the different types of messages
 const uint8_t DIS;
 const uint8_t DIO;
 const uint8_t DAO;
-const uint8_t DATA;
+const uint8_t LIGHT;
 const uint8_t TURNON;
 const uint8_t ACK;
-const uint8_t LIGHT;
-const uint8_t TURNOFF;
 
 
 // Size of control messages
 const size_t DIS_size;
 const size_t DIO_size;
 const size_t DAO_size;
-const size_t DATA_size;
+const size_t LIGHT_size;
 const size_t TURNON_size;
 const size_t ACK_size;
-const size_t LIGHT_size;
 
 
 
@@ -109,12 +112,10 @@ typedef struct DAO_message {
 	uint8_t typeMote;
 } DAO_message_t;
 
-// Represents a DATA message, that carries the data from a sensor mote to the server
-typedef struct DATA_message {
+typedef struct LIGHT_message {
 	uint8_t type;
-	linkaddr_t src_addr;
-	uint16_t data;
-} DATA_message_t;
+	uint16_t light_level;
+} LIGHT_message_t;
 
 typedef struct TURNON_message {
 	uint8_t type;
@@ -125,12 +126,6 @@ typedef struct ACK_message {
 	uint8_t type;
 	uint8_t typeMote;
 } ACK_message_t;
-
-typedef struct LIGHT_message {
-	uint8_t type;
-	uint8_t light_level;
-} LIGHT_message_t;
-
 
 ///////////////////
 ///  FUNCTIONS  ///
@@ -194,15 +189,15 @@ void forward_DAO(DAO_message_t *message, mote_t *mote);
 uint8_t choose_parent(mote_t *mote, const linkaddr_t* parent_addr, uint8_t parent_rank, signed char rss, uint8_t typeMote);
 
 /**
- * Sends a DATA message, containing a random value, to the parent of the mote.
+ * Sends a LIGHT message, containing a random value, to the parent of the mote.
  */
-void send_DATA(mote_t *mote);
+void send_LIGHT(mote_t *mote);
 
 
 /**
- * Forwards a DATA message to the parent of the mote.
+ * Forwards a LIGHT message to the parent of the mote.
  */
-void forward_DATA(DATA_message_t *message, mote_t *mote);
+void forward_LIGHT(LIGHT_message_t *message, mote_t *mote);
 
 void send_TURNON(uint8_t typeMote, linkaddr_t dest, mote_t *mote);
 
@@ -210,11 +205,6 @@ void forward_TURNON(uint8_t typeMote, mote_t *mote);
 
 unsigned isInArray(linkaddr_t* dst, unsigned effectiveSize, linkaddr_t *val);
 
-void send_TURNON_root(uint8_t typeMote, mote_t *mote);
-void send_TURNOFF_root(uint8_t typeMote, mote_t *mote);
-void forward_TURNOFF(uint8_t typeMote, mote_t *mote);
-
 void send_ACK(mote_t *mote);
-void send_LIGHT(uint8_t light_level, mote_t *mote);
-void forward_LIGHT(LIGHT_message_t *message, mote_t *mote);
+
 void forward_ACK(ACK_message_t *message, mote_t *mote);

@@ -15,8 +15,6 @@
 #define LOG_MODULE "App"
 #define LOG_LEVEL LOG_LEVEL_INFO
 
-// Period of sending data messages [sec]
-#define DATA_PERIOD 60
 
 
 
@@ -47,8 +45,8 @@ struct ctimer parent_timer;
 // Callback timer to delete unresponsive children
 struct ctimer children_timer;
 
-// Callback timer to send data
-struct ctimer data_timer;
+// Callback timer to turn off the light
+struct ctimer lightOff_timer;
 
 /**
  * Callback function that will send the appropriate message when ctimer has expired.
@@ -57,7 +55,7 @@ void send_callback(void *ptr) {
 
 	// Send the appropriate message
 	if (!mote.in_dodag) {
-		//LOG_INFO("Sending DIS, finding a parent\n");
+		LOG_INFO("Sending DIS, finding a parent\n");
 		send_DIS();
 	} else {
 		send_DIO(&mote);
@@ -106,7 +104,6 @@ void stop_timers() {
 	ctimer_stop(&DAO_timer);
 	ctimer_stop(&parent_timer);
 	ctimer_stop(&children_timer);
-	ctimer_stop(&data_timer);
 }
 
 /**
@@ -140,43 +137,23 @@ void children_callback(void *ptr) {
 
 }
 
-/**
- * Callback function that will send a data message to the parent.
- */
-void data_callback(void *ptr) {
-	// Send the data to parent if mote is in DODAG
-	if (mote.in_dodag) {
-		send_DATA(&mote);
-	}
-
-	// Restart the timer with a new random value
-	ctimer_set(&data_timer, CLOCK_SECOND*(DATA_PERIOD-5) + (random_rand() % (CLOCK_SECOND*10)),
-		data_callback, NULL);
-}
-
-/**
- * Callback function that will turn off the green LED.
- */
-void open_callback(void *ptr) {
-	leds_off(LEDS_GREEN);
-}
-
-
 
 /////////////////////////////
 ///  RUNICAST CONNECTION  ///
 /////////////////////////////
 
 
+void turnOffLightbulb(){
+	printf("turning OFF light bulbs!!\n");
+	ctimer_stop(&lightOff_timer);
+}
+
 /**
 Function that simulates watering the plants
 */
 void turnOnLightbulb(){
 	printf("turning on light bulbs!!\n");
-}
-
-void turnOffLightbulb(){
-	printf("turning OFF light bulbs!!\n");
+	ctimer_set(&lightOff_timer,CLOCK_SECOND * TIMEOUT_LIGHT,turnOffLightbulb, NULL);
 }
 
 
@@ -213,35 +190,23 @@ void runicast_recv(const void* data, uint8_t len, const linkaddr_t *from) {
 			LOG_INFO("Error adding to routing table\n");
 		}
 
-	} else if (type == DATA) {
-		//LOG_INFO("received DATA\n");
-		// DATA packet, forward towards root
-		DATA_message_t* message = (DATA_message_t*) data;
-		forward_DATA(message, &mote);
+	} else if (type == LIGHT) {
+		//LOG_INFO("received LIGHT\n");
+		// LIGHT packet, forward towards root
+		LIGHT_message_t* message = (LIGHT_message_t*) data;
+		forward_LIGHT(message, &mote);
 
 	}else if (type == TURNON){
 		LOG_INFO("received TURNON\n");
 		TURNON_message_t* message = (TURNON_message_t*) data;
 		if (message->typeMote != mote.typeMote){
-			//LOG_INFO("forwarding TURNON\n");
-			//forward_TURNON(message->typeMote,&mote);		
+			LOG_INFO("forwarding TURNON\n");
+			forward_TURNON(message->typeMote, &mote);		
 		}
-		else{
-			
-			turnOnLightbulb();
-			  
+		else{			
+			turnOnLightbulb();			  
 		}
-	}  else if (type == TURNOFF){
-		LOG_INFO("received TURNOFF\n");
-		TURNON_message_t* message = (TURNON_message_t*) data;
-		if (message->typeMote != mote.typeMote){
-			//LOG_INFO("forwarding TURNON\n");
-			//forward_TURNON(message->typeMote,&mote);		
-		}
-		else{
-				turnOffLightbulb();
-			}
-	} else {
+	}  else {
 		LOG_INFO("Unknown runicast message received.\n");
 	}
 
@@ -289,18 +254,8 @@ void broadcast_recv(const void* data, uint16_t len, const linkaddr_t *from) {
 			//forward_TURNON(message->typeMote,&mote);		
 		}
 		else{
-				turnOnLightbulb();
-			}
-	} else if (type == TURNOFF){
-		LOG_INFO("received TURNOFF\n");
-		TURNON_message_t* message = (TURNON_message_t*) data;
-		if (message->typeMote != mote.typeMote){
-			//LOG_INFO("forwarding TURNON\n");
-			//forward_TURNON(message->typeMote,&mote);		
+			turnOnLightbulb();
 		}
-		else{
-				turnOffLightbulb();
-			}
 	} else if (type == DIS) { // DIS message received
 		//LOG_INFO("DIS received\n");
 		// If the mote is already in a DODAG, send DIO packet
@@ -337,25 +292,23 @@ void broadcast_recv(const void* data, uint16_t len, const linkaddr_t *from) {
 			//LOG_INFO("code parent is = %u \n", code);
 		    	if (code == PARENT_NEW) {
 				reset_timers();
-				//LOG_INFO("Parent choosed, sending DAO, new rank = %u \n", message->rank+1);
+				LOG_INFO("Parent choosed, sending DAO, new rank = %u \n", message->rank+1);
 			    	send_DAO(&mote);
 
 			    	// Start all timers that are used when mote is in DODAG
 			    	ctimer_set(&send_timer, trickle_random(&t_timer),
 						send_callback, NULL);
-					ctimer_set(&DAO_timer, trickle_random(&t_timer),
+				ctimer_set(&DAO_timer, trickle_random(&t_timer),
 						DAO_callback, NULL);
-					ctimer_set(&parent_timer, CLOCK_SECOND*TIMEOUT_PARENT,
+				ctimer_set(&parent_timer, CLOCK_SECOND*TIMEOUT_PARENT,
 						parent_callback, NULL);
-					ctimer_set(&children_timer, CLOCK_SECOND*TIMEOUT_CHILDREN,
+				ctimer_set(&children_timer, CLOCK_SECOND*TIMEOUT_CHILDREN,
 						children_callback, NULL);
-					ctimer_set(&data_timer, CLOCK_SECOND*(DATA_PERIOD-5) + (random_rand() % (CLOCK_SECOND*10)),
-						data_callback, NULL);
 
 		    	} else if (code == PARENT_CHANGED) {
 			    	// If parent has changed, send DIO message to update children
 			    	// and DAO to update routing tables, then reset timers
-				//LOG_INFO("Parent changed, sending DIO and DAO to update routing and children, new rank is %u \n", mote.rank);
+				LOG_INFO("Parent changed, sending DIO and DAO to update routing and children, new rank is %u \n", mote.rank);
 
 			    	send_DIO(&mote);
 			    	send_DAO(&mote);
@@ -394,7 +347,7 @@ AUTOSTART_PROCESSES(&sensor_mote);
 PROCESS_THREAD(sensor_mote, ev, data) {
 
 	if (!created) {
-		init_mote(&mote, 5);
+		init_mote(&mote, 4);
 		trickle_init(&t_timer);
 		created = 1;
 	}

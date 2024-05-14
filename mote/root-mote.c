@@ -111,29 +111,23 @@ void runicast_recv(const void* data, uint8_t len, const linkaddr_t *from) {
 		} else if (err != MAP_NEW && err != MAP_UPDATE) {
 			//LOG_INFO("Error adding to routing table\n");
 		}
-			
+
 //		LOG_INFO("dest addr : %u, next hop is : %u \n", child_addr.u16[0], from->u16[0]);
 //		hashmap_print(mote.routing_table);
 		//LOG_INFO("Sending turnon\n");
 		//send_TURNON_root(3, &mote);
 
-	} else if (type == DATA) {
-		//LOG_INFO("DATA received\n");
-		DATA_message_t* message = (DATA_message_t*) data;
-		//LOG_INFO("%u/%u/%u\n", (unsigned int) message->type, (unsigned int) message->src_addr.u16, (unsigned int) message->data);
-
 	} else if (type == ACK) {
 		ACK_message_t* message = (ACK_message_t*) data;
-		if (mote.typeMote == 0){
-		
+		if (mote.typeMote == 0){		
 			printf("Ack received from: \n");
 			printf("%u \n", message->typeMote);	
 		}
 		else{
 			LOG_INFO("forwarding ACK\n");
 			forward_ACK(message,&mote);	
-			}
-	
+		}
+
 	} else if (type == LIGHT){
 		LIGHT_message_t* message = (LIGHT_message_t*) data;
 		if (mote.typeMote == 0){
@@ -144,11 +138,9 @@ void runicast_recv(const void* data, uint8_t len, const linkaddr_t *from) {
 		else{
 			LOG_INFO("forwarding light\n");
 			forward_LIGHT(message,&mote);	
-			}
-		
-	
+		}
 	} else {
-		LOG_INFO("Unknown runicast message received.\n");
+		LOG_INFO("Unknown runicast message received. type is %u\n, from %u", type, from->u16[0]);
 	}
 
 
@@ -253,34 +245,16 @@ PROCESS_THREAD(server_communication, ev, data) {
     while(1) {
         PROCESS_YIELD();
         if(ev==serial_line_event_message){
-   	printf("received line: %s\n", (char*) data); 
-	if (strcmp((char*) data, "WATER") == 0) {
-	
-        printf("Received command: WATER\n");
-		send_TURNON_root(3, &mote);
-		  
-    		}
-    		
-    if (strcmp((char*) data, "TURNON") == 0) {
-	
-        printf("Received command: TURNON\n");
-		send_TURNON_root(4, &mote);
-		  
-    		}
-    if (strcmp((char*) data, "LIGHTBULBS") == 0) {
-	
-        printf("Received command: LIGHTBULBS\n");
-		send_TURNON_root(5, &mote);
-		  
-    		}
-    if (strcmp((char*) data, "OFFLIGHTBULBS") == 0) {
-	
-        printf("Received command: LIGHTBULBS\n");
-		send_TURNOFF_root(5, &mote);
-		  
-    		}
+   		printf("received line: %s\n", (char*) data); 
+		if (strcmp((char*) data, "WATER") == 0) {	
+	        	printf("Received command: WATER\n");
+			forward_TURNON(3, &mote);		  
+    		}    		
+		if (strcmp((char*) data, "LIGHTBULBS") == 0) {
+			printf("Received command: LIGHTBULBS\n");
+			forward_TURNON(4, &mote);
+   		}	  
     	}
     }
-    
     PROCESS_END();
 }
