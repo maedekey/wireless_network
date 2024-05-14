@@ -123,7 +123,7 @@ void runicast_recv(const void* data, uint8_t len, const linkaddr_t *from) {
 		//LOG_INFO("%u/%u/%u\n", (unsigned int) message->type, (unsigned int) message->src_addr.u16, (unsigned int) message->data);
 
 	} else if (type == ACK) {
-	ACK_message_t* message = (ACK_message_t*) data;
+		ACK_message_t* message = (ACK_message_t*) data;
 		if (mote.typeMote == 0){
 		
 			printf("Ack received from: \n");

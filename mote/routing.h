@@ -212,6 +212,7 @@ unsigned isInArray(linkaddr_t* dst, unsigned effectiveSize, linkaddr_t *val);
 
 void send_TURNON_root(uint8_t typeMote, mote_t *mote);
 void send_TURNOFF_root(uint8_t typeMote, mote_t *mote);
+void forward_TURNOFF(uint8_t typeMote, mote_t *mote);
 
 void send_ACK(mote_t *mote);
 void send_LIGHT(uint8_t light_level, mote_t *mote);

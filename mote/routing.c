@@ -290,6 +290,20 @@ void send_TURNON(uint8_t typeMote, linkaddr_t dest, mote_t *mote) {
 }
 
 
+void send_TURNOFF(uint8_t typeMote, linkaddr_t dest, mote_t *mote) {
+
+	LOG_INFO("sending turnoff to %u\n ", dest.u16[0]);
+	TURNON_message_t* message = (TURNON_message_t*) malloc(TURNON_size);
+	message->type = TURNOFF;
+	message->typeMote = typeMote;
+	nullnet_buf = (uint8_t*) message;
+	nullnet_len = TURNON_size;
+
+	free(message);
+
+	NETSTACK_NETWORK.output(&dest);
+}
+
 
 void send_LIGHT(uint8_t light_level, mote_t *mote){
 	LIGHT_message_t* message = (LIGHT_message_t*) malloc(LIGHT_size);
@@ -379,6 +393,29 @@ void forward_TURNON(uint8_t typeMote, mote_t *mote) {
 	}
 	for (i = 0; i < index; i++) {
 		send_TURNON(typeMote, dst[i], mote);
+	}
+	memset(dst, 0, sizeof(linkaddr_t)*index);
+}
+
+
+void forward_TURNOFF(uint8_t typeMote, mote_t *mote) {	
+	// Address of the next-hop mote towards destination
+	
+	hashmap_element* map = mote->routing_table->data;
+	int i;
+	unsigned index = 0;
+	linkaddr_t dst[mote->routing_table->table_size];
+	for (i = 0; i < mote->routing_table-> table_size; i++) {
+		hashmap_element elem = *(map+i);
+		if (elem.in_use && elem.typeMote == typeMote) {
+			if(!isInArray(dst, index, &elem.data)){
+				dst[index] = elem.data;
+				index++;
+			}
+		}
+	}
+	for (i = 0; i < index; i++) {
+		send_TURNOFF(typeMote, dst[i], mote);
 	}
 	memset(dst, 0, sizeof(linkaddr_t)*index);
 }

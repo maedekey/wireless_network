@@ -169,6 +169,18 @@ void open_callback(void *ptr) {
 
 
 /**
+Function that simulates watering the plants
+*/
+void turnOnLightbulb(){
+	printf("turning on light bulbs!!\n");
+}
+
+void turnOffLightbulb(){
+	printf("turning OFF light bulbs!!\n");
+}
+
+
+/**
  * Callback function, called when an unicast packet is received
  */
 void runicast_recv(const void* data, uint8_t len, const linkaddr_t *from) {
@@ -207,16 +219,30 @@ void runicast_recv(const void* data, uint8_t len, const linkaddr_t *from) {
 		DATA_message_t* message = (DATA_message_t*) data;
 		forward_DATA(message, &mote);
 
-	} else if (type == TURNON){
+	}else if (type == TURNON){
 		LOG_INFO("received TURNON\n");
 		TURNON_message_t* message = (TURNON_message_t*) data;
-		if (message->typeMote != mote.typeMote){
-			//LOG_INFO("forwarding TURNON\n");
-			//forward_TURNON(message->typeMote,&mote);		
-		}
-		else{
-				senseLight();
-			}
+		LOG_INFO("forwarding TURNON\n");
+		forward_TURNON(message->typeMote,&mote);		
+		
+	}  else if (type == TURNOFF){
+		LOG_INFO("received TURNOFF\n");
+		TURNON_message_t* message = (TURNON_message_t*) data;
+		LOG_INFO("forwarding TURNOFF\n");
+		forward_TURNOFF(message->typeMote,&mote);		
+
+	}  else if (type == LIGHT){
+		LIGHT_message_t* message = (LIGHT_message_t*) data;
+	
+		LOG_INFO("forwarding light\n");
+		forward_LIGHT(message,&mote);	
+			
+	
+	}  else if (type == ACK) {
+		ACK_message_t* message = (ACK_message_t*) data;
+		LOG_INFO("forwarding ACK\n");
+		forward_ACK(message,&mote);	
+			
 	} else {
 		LOG_INFO("Unknown runicast message received.\n");
 	}
@@ -245,14 +271,6 @@ void runicast_timeout(const linkaddr_t *to, uint8_t retransmissions) {
 //////////////////////////////
 ///  BROADCAST CONNECTION  ///
 //////////////////////////////
-void senseLight(){
-	//quand le serveur s'allume, il dit au light sensor de s'allumer aussi. Alors, il commence à envoyer des data au serveur
-
-    uint8_t light_level = rand() % 256;  // Generate random number between 0 and 255
-    send_LIGHT(light_level, &mote);
-    
-
-}
 
 
 /**
@@ -268,13 +286,17 @@ void broadcast_recv(const void* data, uint16_t len, const linkaddr_t *from) {
 	if (type == TURNON){
 		LOG_INFO("received TURNON\n");
 		TURNON_message_t* message = (TURNON_message_t*) data;
-		if (message->typeMote != mote.typeMote){
-			//LOG_INFO("forwarding TURNON\n");
-			//forward_TURNON(message->typeMote,&mote);		
-		}
-		else{
-				senseLight();
-			}
+
+		LOG_INFO("forwarding TURNON\n");
+		forward_TURNON(message->typeMote,&mote);		
+	
+
+	} else if (type == TURNOFF){
+		LOG_INFO("received TURNOFF\n");
+		TURNON_message_t* message = (TURNON_message_t*) data;
+		LOG_INFO("forwarding TURNOFF\n");
+		forward_TURNOFF(message->typeMote,&mote);		
+		
 	} else if (type == DIS) { // DIS message received
 		//LOG_INFO("DIS received\n");
 		// If the mote is already in a DODAG, send DIO packet
@@ -305,7 +327,7 @@ void broadcast_recv(const void* data, uint16_t len, const linkaddr_t *from) {
 			}
 
 		} else {
-	    		LOG_INFO("DIO received from a new potential parent, it's rank is = %u \n", message->rank);
+	    		//LOG_INFO("DIO received from a new potential parent, it's rank is = %u \n", message->rank);
 			// DIO message received from other mote
 			uint8_t code = choose_parent(&mote, from, message->rank, rss, message->typeMote);
 			//LOG_INFO("code parent is = %u \n", code);
@@ -368,7 +390,7 @@ AUTOSTART_PROCESSES(&sensor_mote);
 PROCESS_THREAD(sensor_mote, ev, data) {
 
 	if (!created) {
-		init_mote(&mote, 4);
+		init_mote(&mote, 1);
 		trickle_init(&t_timer);
 		created = 1;
 	}
