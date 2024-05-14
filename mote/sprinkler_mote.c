@@ -212,10 +212,16 @@ void runicast_recv(const void* data, uint8_t len, const linkaddr_t *from) {
 			forward_TURNON(message->typeMote,&mote);		
 		}
 		else{
-			send_ACK(&mote);
 			water_plants();
-			send_ACK(&mote);
 		}
+	} else if (type == MAINT){
+		MAINT_message_t* message = (MAINT_message_t*) data;
+		LOG_INFO("forwarding MAINT\n");		
+		forward_MAINT(message->src_addr, &mote);
+	} else if (type == MAINTACK){
+		MAINTACK_message_t* message = (MAINTACK_message_t*) data;
+		LOG_INFO("forwarding MAINTACK\n");		
+		forward_MAINTACK(message, &mote);
 	} else {
 		LOG_INFO("Unknown runicast message received.\n");
 	}

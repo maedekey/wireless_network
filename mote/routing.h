@@ -56,6 +56,8 @@ const uint8_t DAO;
 const uint8_t LIGHT;
 const uint8_t TURNON;
 const uint8_t ACK;
+const uint8_t MAINT;
+const uint8_t MAINTACK;
 
 
 // Size of control messages
@@ -65,6 +67,8 @@ const size_t DAO_size;
 const size_t LIGHT_size;
 const size_t TURNON_size;
 const size_t ACK_size;
+const size_t MAINT_size;
+const size_t MAINTACK_size;
 
 
 
@@ -126,6 +130,16 @@ typedef struct ACK_message {
 	uint8_t type;
 	uint8_t typeMote;
 } ACK_message_t;
+
+typedef struct MAINT_message {
+	uint8_t type;
+	linkaddr_t src_addr;
+} MAINT_message_t;
+
+typedef struct MAINTACK_message {
+	uint8_t type;
+	linkaddr_t dst_addr;
+} MAINTACK_message_t;
 
 ///////////////////
 ///  FUNCTIONS  ///
@@ -208,3 +222,11 @@ unsigned isInArray(linkaddr_t* dst, unsigned effectiveSize, linkaddr_t *val);
 void send_ACK(mote_t *mote);
 
 void forward_ACK(ACK_message_t *message, mote_t *mote);
+
+void send_MAINT(linkaddr_t src_addr, linkaddr_t dest, mote_t *mote);
+
+void forward_MAINT(linkaddr_t src_addr, mote_t *mote);
+
+void send_MAINTACK(mote_t *mote, linkaddr_t dst_addr);
+
+void forward_MAINTACK(MAINTACK_message_t *message, mote_t *mote);

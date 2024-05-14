@@ -1,7 +1,3 @@
-/**
- * Code for the sensor nodes
- */
-
 #include "dev/leds.h"
 
 #include "routing.h"
@@ -15,10 +11,6 @@
 #define LOG_MODULE "App"
 #define LOG_LEVEL LOG_LEVEL_INFO
 
-// Period of sending light messages [sec]
-#define LIGHT_PERIOD 60
-
-
 
 // Represents the attributes of this mote
 mote_t mote;
@@ -28,6 +20,8 @@ uint8_t created = 0;
 
 // Trickle timer for the periodic messages
 trickle_timer_t t_timer;
+
+uint8_t cptACK = 0;
 
 
 
@@ -44,16 +38,6 @@ struct ctimer DAO_timer;
 // Callback timer to detach from lost parent
 struct ctimer parent_timer;
 
-// Callback timer to delete unresponsive children
-struct ctimer children_timer;
-
-// Callback timer to send light
-struct ctimer light_timer;
-
-void senseLight(){
-    send_LIGHT(&mote);
-   
-}
 
 /**
  * Callback function that will send the appropriate message when ctimer has expired.
@@ -64,15 +48,10 @@ void send_callback(void *ptr) {
 	if (!mote.in_dodag) {
 		LOG_INFO("Sending DIS, finding a parent\n");
 		send_DIS();
-	} else {
-		send_DIO(&mote);
-		//LOG_INFO("DIO sent rank = %u \n", mote.rank);
-		// Update the trickle timer
-		trickle_update(&t_timer);
 	}
 
 	// Restart the timer with a new random value
-	ctimer_set(&send_timer, trickle_random(&t_timer), send_callback, NULL);
+//	ctimer_set(&send_timer, trickle_random(&t_timer), send_callback, NULL);
 
 }
 
@@ -110,8 +89,6 @@ void stop_timers() {
 		send_callback, NULL);
 	ctimer_stop(&DAO_timer);
 	ctimer_stop(&parent_timer);
-	ctimer_stop(&children_timer);
-	ctimer_stop(&light_timer);
 }
 
 /**
@@ -131,34 +108,6 @@ void parent_callback(void *ptr) {
 
 }
 
-/**
- * Callback function that will delete unresponsive children from the routing table.
- */
-void children_callback(void *ptr) {
-	// Reset the timer
-	ctimer_reset(&children_timer);
-
-	if (mote.in_dodag && hashmap_delete_timeout(mote.routing_table)) {
-		// Children have been deleted, reset sending timers
-		reset_timers();
-	}
-
-}
-
-/**
- * Callback function that will send a light message to the parent.
- */
-void light_callback(void *ptr) {
-	// Send the light to parent if mote is in DODAG
-	if (mote.in_dodag) {
-		send_LIGHT(&mote);
-	}
-
-	// Restart the timer with a new random value
-	ctimer_set(&light_timer, CLOCK_SECOND*(LIGHT_PERIOD-5) + (random_rand() % (CLOCK_SECOND*10)),
-		light_callback, NULL);
-}
-
 
 
 /////////////////////////////
@@ -174,52 +123,12 @@ void runicast_recv(const void* data, uint8_t len, const linkaddr_t *from) {
 	uint8_t* typePtr = (uint8_t*) data;
 	uint8_t type = *typePtr;
 
-	if (type == DAO) {
-		//LOG_INFO("DAO received\n");
-
-		//LOG_INFO("DAO message received from %u.%u\n", from->u8[0], from->u8[1]);
-
-		DAO_message_t* message = (DAO_message_t*) data;
-
-		// Address of the mote that sent the DAO packet
-		linkaddr_t child_addr = message->src_addr;
-
-		int err = hashmap_put(mote.routing_table, child_addr, message->typeMote, *from);
-		if (err == MAP_NEW || err == MAP_UPDATE) {
-
-			// Forward DAO message to parent
-			forward_DAO(message, &mote);
-
-			if (err == MAP_NEW) { // A new child was added to the routing table
-				// Reset timers
-				reset_timers();
-			}
-
-		} else {
-			LOG_INFO("Error adding to routing table\n");
+	if (type == MAINTACK){
+		LOG_INFO("Received with MAINTACK number %u\n", cptACK);
+		cptACK++;
+		if (cptACK == 3){
+			LOG_INFO("Received all acks\n");
 		}
-
-	} else if (type == LIGHT) {
-		//LOG_INFO("received LIGHT\n");
-		// LIGHT packet, forward towards root
-		LIGHT_message_t* message = (LIGHT_message_t*) data;
-		forward_LIGHT(message, &mote);
-
-	} else if (type == TURNON){
-		TURNON_message_t* message = (TURNON_message_t*) data;
-		LOG_INFO("received TURNON\n");
-		if (message->typeMote != mote.typeMote){
-			TURNON_message_t* message = (TURNON_message_t*) data;
-			LOG_INFO("forwarding TURNON\n");
-			forward_TURNON(message->typeMote,&mote);		
-		}
-		else{
-			senseLight();
-		}
-	} else if (type == MAINT){
-		MAINT_message_t* message = (MAINT_message_t*) data;
-		LOG_INFO("Reply with MAINTACK\n");
-		send_MAINTACK(&mote, message->src_addr);
 	}else {
 		LOG_INFO("Unknown runicast message received.\n");
 	}
@@ -260,22 +169,7 @@ void broadcast_recv(const void* data, uint16_t len, const linkaddr_t *from) {
 
 	uint8_t* typePtr = (uint8_t*) data;
 	uint8_t type = *typePtr;
-	if (type == TURNON){
-		LOG_INFO("received TURNON\n");
-		TURNON_message_t* message = (TURNON_message_t*) data;
-		if (message->typeMote != mote.typeMote){
-			//LOG_INFO("forwarding TURNON\n");
-			//forward_TURNON(message->typeMote,&mote);		
-		}
-	} else if (type == DIS) { // DIS message received
-		//LOG_INFO("DIS received\n");
-		// If the mote is already in a DODAG, send DIO packet
-		if (mote.in_dodag) {
-			send_DIO(&mote);
-			//LOG_INFO("DIO sent rank = %u \n", mote.rank);
-		}
-
-	} else if (type == DIO) { // DIO message received
+	if (type == DIO) { // DIO message received
 		//LOG_INFO("DIO received, evaluating evaluating the change of a parent \n");
 		DIO_message_t* message = (DIO_message_t*) data;
 		if (linkaddr_cmp(from, &(mote.parent->addr))) { // DIO message received from parent
@@ -288,12 +182,6 @@ void broadcast_recv(const void* data, uint16_t len, const linkaddr_t *from) {
 				// Restart timer to delete lost parent
 				ctimer_set(&parent_timer, CLOCK_SECOND*TIMEOUT_PARENT,
 					parent_callback, NULL);
-				if (update_parent(&mote, message->rank, rss, message->typeMote)) {
-					//LOG_INFO("Parent update, sending DIO, new rank = %u \n", message->rank);
-					send_DIO(&mote);
-					// Rank of parent has changed, reset trickle timer
-					reset_timers();
-				}
 			}
 
 		} else {
@@ -305,24 +193,24 @@ void broadcast_recv(const void* data, uint16_t len, const linkaddr_t *from) {
 				reset_timers();
 				LOG_INFO("Parent choosed, sending DAO, new rank = %u \n", message->rank+1);
 			    	send_DAO(&mote);
+			    	LOG_INFO("sending maintenance messages\n");
+				send_MAINT(mote.addr,mote.parent->addr, &mote);
+				send_MAINT(mote.addr,mote.parent->addr, &mote);
+				send_MAINT(mote.addr,mote.parent->addr, &mote);
 
 			    	// Start all timers that are used when mote is in DODAG
 			    	ctimer_set(&send_timer, trickle_random(&t_timer),
 						send_callback, NULL);
-					ctimer_set(&DAO_timer, trickle_random(&t_timer),
+				ctimer_set(&DAO_timer, trickle_random(&t_timer),
 						DAO_callback, NULL);
-					ctimer_set(&parent_timer, CLOCK_SECOND*TIMEOUT_PARENT,
+				ctimer_set(&parent_timer, CLOCK_SECOND*TIMEOUT_PARENT,
 						parent_callback, NULL);
-					ctimer_set(&children_timer, CLOCK_SECOND*TIMEOUT_CHILDREN,
-						children_callback, NULL);
-					ctimer_set(&light_timer, CLOCK_SECOND*(LIGHT_PERIOD-5) + (random_rand() % (CLOCK_SECOND*10)),
-						light_callback, NULL);
+
 		    	} else if (code == PARENT_CHANGED) {
 			    	// If parent has changed, send DIO message to update children
 			    	// and DAO to update routing tables, then reset timers
 				LOG_INFO("Parent changed, sending DIO and DAO to update routing and children, new rank is %u \n", mote.rank);
 
-			    	send_DIO(&mote);
 			    	send_DAO(&mote);
 			    	reset_timers();
 		    	}

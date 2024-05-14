@@ -139,6 +139,14 @@ void runicast_recv(const void* data, uint8_t len, const linkaddr_t *from) {
 			LOG_INFO("forwarding light\n");
 			forward_LIGHT(message,&mote);	
 		}
+	} else if (type == MAINT){
+		MAINT_message_t* message = (MAINT_message_t*) data;
+		LOG_INFO("forwarding MAINT\n");
+		forward_MAINT(message->src_addr, &mote);
+	} else if (type == MAINTACK){
+		MAINTACK_message_t* message = (MAINTACK_message_t*) data;
+		LOG_INFO("forwarding MAINTACK\n");		
+		forward_MAINTACK(message, &mote);
 	} else {
 		LOG_INFO("Unknown runicast message received. type is %u\n, from %u", type, from->u16[0]);
 	}
