@@ -95,6 +95,7 @@ void runicast_recv(const void* data, uint8_t len, const linkaddr_t *from) {
 
 	uint8_t* typePtr = (uint8_t*) data;
 	uint8_t type = *typePtr;
+
 	if (type == DAO) {
 		DAO_message_t* message = (DAO_message_t*) data;
 
@@ -108,37 +109,45 @@ void runicast_recv(const void* data, uint8_t len, const linkaddr_t *from) {
 			// Reset trickle timer and sending timer
 			reset_timers(&t_timer);
 		} else if (err != MAP_NEW && err != MAP_UPDATE) {
-			LOG_INFO("Error adding to routing table\n");
+			//LOG_INFO("Error adding to routing table\n");
 		}
 			
-		//LOG_INFO("dest addr : %u, next hop is : %u \n", child_addr.u16[0], from->u16[0]);
-		//hashmap_print(mote.routing_table);
+//		LOG_INFO("dest addr : %u, next hop is : %u \n", child_addr.u16[0], from->u16[0]);
+//		hashmap_print(mote.routing_table);
 		//LOG_INFO("Sending turnon\n");
-		//forward_TURNON(3, &mote);
+		//send_TURNON_root(3, &mote);
 
 	} else if (type == DATA) {
 		//LOG_INFO("DATA received\n");
 		DATA_message_t* message = (DATA_message_t*) data;
 		//LOG_INFO("%u/%u/%u\n", (unsigned int) message->type, (unsigned int) message->src_addr.u16, (unsigned int) message->data);
 
-	} else if (type == ACK){
-		ACK_message_t* message = (ACK_message_t*) data;
-		if (message->dst_addr.u16[0] != mote.addr.u16[0]){
-			LOG_INFO("forwarding ACK\n");
-			forward_ACK(message,&mote);		
+	} else if (type == ACK) {
+	ACK_message_t* message = (ACK_message_t*) data;
+		if (mote.typeMote == 0){
+		
+			printf("Ack received from: \n");
+			printf("%u \n", message->typeMote);	
 		}
 		else{
-			printf("Ack received from: \n");
-			printf("%u \n", message->typeMote);
+			LOG_INFO("forwarding ACK\n");
+			forward_ACK(message,&mote);	
 			}
 	
-	} else if (type == TURNON) {
-		ACK_message_t* message = (ACK_message_t*) data;
-		printf("TURNON received from: \n");
-		printf("%u \n", message->typeMote);
-		printf("%d, %d \n", ACK, type);
-	} else{
-		printf("%d, %d \n", ACK, type);
+	} else if (type == LIGHT){
+		LIGHT_message_t* message = (LIGHT_message_t*) data;
+		if (mote.typeMote == 0){
+			printf("LIGHTSENSOR");
+			printf("%u \n", message->light_level);
+			printf("LIGHTSENSOR");
+		}
+		else{
+			LOG_INFO("forwarding light\n");
+			forward_LIGHT(message,&mote);	
+			}
+		
+	
+	} else {
 		LOG_INFO("Unknown runicast message received.\n");
 	}
 
@@ -173,10 +182,8 @@ void broadcast_recv(const void* data, uint16_t len, const linkaddr_t *from) {
 
 	uint8_t* typePtr = (uint8_t*) data;
 	uint8_t type = *typePtr;
-
 	if (type == DIS) {
 		//LOG_INFO("DIS received\n");
-		//LOG_INFO("DIS packet received.\n");
 		// If the mote is already in a DODAG, send DIO packet
 		if (mote.in_dodag) {
 			//LOG_INFO("Sending DIO\n");
@@ -250,20 +257,30 @@ PROCESS_THREAD(server_communication, ev, data) {
 	if (strcmp((char*) data, "WATER") == 0) {
 	
         printf("Received command: WATER\n");
-        hashmap_print(mote.routing_table);
-	   	ip_address_results results = get_ip_addresses_by_type(mote.routing_table, 3);
-	   	linkaddr_t* ip_addresses = results.ip_addresses;
-		int num_addresses = results.num_addresses;
-		for (int i = 0; i < num_addresses; i++) {
-		  // Process each IP address in the array
-		  linkaddr_t current_ip = ip_addresses[i];
-		  printf("IP address %d: %u\n", i + 1, current_ip);  
-		  // Le gateway enverra au sub gateway le turnon. le 3e paramètre est l'addresse du sensor cible, et le 4e paramètre est l'addresse du subgateway (donc, son fils). pour tester plus facilement, ici, on met current_ip partout.
-		  send_TURNON(3, mote.addr, current_ip, current_ip);
+		send_TURNON_root(3, &mote);
+		  
+    		}
+    		
+    if (strcmp((char*) data, "TURNON") == 0) {
+	
+        printf("Received command: TURNON\n");
+		send_TURNON_root(4, &mote);
+		  
+    		}
+    if (strcmp((char*) data, "LIGHTBULBS") == 0) {
+	
+        printf("Received command: LIGHTBULBS\n");
+		send_TURNON_root(5, &mote);
+		  
+    		}
+    if (strcmp((char*) data, "OFFLIGHTBULBS") == 0) {
+	
+        printf("Received command: LIGHTBULBS\n");
+		send_TURNOFF_root(5, &mote);
 		  
     		}
     	}
     }
-    }
+    
     PROCESS_END();
 }

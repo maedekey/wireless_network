@@ -8,6 +8,7 @@
 #include "trickle-timer.h"
 #include <stdio.h>
 #include <stdlib.h>
+
 #include "random.h"
 #include "sys/log.h"
 
@@ -168,13 +169,6 @@ void open_callback(void *ptr) {
 
 
 /**
-Function that simulates watering the plants
-*/
-void water_plants(){
-	printf("watering plants!!\n");
-}
-
-/**
  * Callback function, called when an unicast packet is received
  */
 void runicast_recv(const void* data, uint8_t len, const linkaddr_t *from) {
@@ -213,20 +207,6 @@ void runicast_recv(const void* data, uint8_t len, const linkaddr_t *from) {
 		DATA_message_t* message = (DATA_message_t*) data;
 		forward_DATA(message, &mote);
 
-	}else if (type == TURNON){
-		LOG_INFO("received TURNON\n");
-		TURNON_message_t* message = (TURNON_message_t*) data;
-		if (message->typeMote != mote.typeMote){
-			//LOG_INFO("forwarding TURNON\n");
-			//forward_TURNON(message->typeMote,&mote);		
-		}
-		else{
-			
-			send_ACK(&mote);
-			water_plants();
-			send_ACK(&mote);
-			  
-		}
 	} else {
 		LOG_INFO("Unknown runicast message received.\n");
 	}
@@ -255,6 +235,15 @@ void runicast_timeout(const linkaddr_t *to, uint8_t retransmissions) {
 //////////////////////////////
 ///  BROADCAST CONNECTION  ///
 //////////////////////////////
+void senseLight(){
+	//quand le serveur s'allume, il dit au light sensor de s'allumer aussi. Alors, il commence à envoyer des data au serveur
+
+    uint8_t light_level = rand() % 256;  // Generate random number between 0 and 255
+    send_LIGHT(light_level, &mote);
+    
+
+}
+
 
 /**
  * Callback function, called when a broadcast packet is received
@@ -266,8 +255,17 @@ void broadcast_recv(const void* data, uint16_t len, const linkaddr_t *from) {
 
 	uint8_t* typePtr = (uint8_t*) data;
 	uint8_t type = *typePtr;
-
-	if (type == DIS) { // DIS message received
+	if (type == TURNON){
+		LOG_INFO("received TURNON\n");
+		TURNON_message_t* message = (TURNON_message_t*) data;
+		if (message->typeMote != mote.typeMote){
+			//LOG_INFO("forwarding TURNON\n");
+			//forward_TURNON(message->typeMote,&mote);		
+		}
+		else{
+				senseLight();
+			}
+	} else if (type == DIS) { // DIS message received
 		//LOG_INFO("DIS received\n");
 		// If the mote is already in a DODAG, send DIO packet
 		if (mote.in_dodag) {
@@ -329,18 +327,6 @@ void broadcast_recv(const void* data, uint16_t len, const linkaddr_t *from) {
 		    	}
 		}
 
-	}else if (type == TURNON){
-		TURNON_message_t* message = (TURNON_message_t*) data;
-		if (message->typeMote != mote.typeMote){
-			LOG_INFO("forwarding TURNON\n");
-			forward_TURNON(message->typeMote,&mote);		
-		}
-		else{
-			send_ACK(&mote);
-			water_plants();
-			send_ACK(&mote);
-			  
-		}
 	} else { // Unknown message received
 		LOG_INFO("Unknown broadcast message received.\n");
 	}
@@ -360,7 +346,6 @@ void input_callback(const void *data, uint16_t len,
 	}
 }
 
-
 //////////////////////
 ///  MAIN PROCESS  ///
 //////////////////////
@@ -373,7 +358,7 @@ AUTOSTART_PROCESSES(&sensor_mote);
 PROCESS_THREAD(sensor_mote, ev, data) {
 
 	if (!created) {
-		init_mote(&mote, 3);
+		init_mote(&mote, 4);
 		trickle_init(&t_timer);
 		created = 1;
 	}
@@ -399,3 +384,5 @@ PROCESS_THREAD(sensor_mote, ev, data) {
 	PROCESS_END();
 
 }
+
+

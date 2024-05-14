@@ -17,9 +17,10 @@ const uint8_t DIS = 2;
 const uint8_t DIO = 3;
 const uint8_t DAO = 4;
 const uint8_t DATA = 0;
-const uint8_t ACK = 7;
 const uint8_t TURNON = 5;
-
+const uint8_t TURNOFF = 6;
+const uint8_t ACK = 7;
+const uint8_t LIGHT = 8;
 
 
 
@@ -29,7 +30,7 @@ const size_t DIO_size = sizeof(DIO_message_t);
 const size_t DAO_size = sizeof(DAO_message_t);
 const size_t DATA_size = sizeof(DATA_message_t);
 const size_t TURNON_size = sizeof(TURNON_message_t);
-
+const size_t LIGHT_size = sizeof(LIGHT_message_t);
 
 
 ///////////////////
@@ -48,7 +49,7 @@ void init_mote(mote_t *mote, uint8_t typeMote) {
 	mote->routing_table = hashmap_new();
 
 	if (!mote->routing_table) {
-		//LOG_INFO("init_mote() of mote with address %u.%u : could not allocate enough memory\n", (mote->addr).u8[0], (mote->addr).u8[1]);
+		LOG_INFO("init_mote() of mote with address %u.%u : could not allocate enough memory\n", (mote->addr).u8[0], (mote->addr).u8[1]);
 		exit(-1);
 	}
 	if (typeMote == 0){
@@ -274,14 +275,12 @@ void forward_DATA(DATA_message_t *message, mote_t *mote) {
 	NETSTACK_NETWORK.output(&(mote->parent->addr));
 }
 
-void send_TURNON(uint8_t typeMote, linkaddr_t src_addr, linkaddr_t dst_addr, linkaddr_t dest) {
+void send_TURNON(uint8_t typeMote, linkaddr_t dest, mote_t *mote) {
 
-//	LOG_INFO("sending turnon to %u\n ", dest.u16[0]);
+	LOG_INFO("sending turnon to %u\n ", dest.u16[0]);
 	TURNON_message_t* message = (TURNON_message_t*) malloc(TURNON_size);
 	message->type = TURNON;
 	message->typeMote = typeMote;
-	message->src_addr = src_addr;
-	message->dst_addr = dst_addr;
 	nullnet_buf = (uint8_t*) message;
 	nullnet_len = TURNON_size;
 
@@ -291,48 +290,38 @@ void send_TURNON(uint8_t typeMote, linkaddr_t src_addr, linkaddr_t dst_addr, lin
 }
 
 
-void forward_TURNON(TURNON_message_t *message, mote_t *mote) {	
-	uint8_t typeMote = message->typeMote;
-	// Address of the next-hop mote towards destination
-	
-	hashmap_element* map = mote->routing_table->data;
-	int i;
-	unsigned index = 0;
-	linkaddr_t dst[mote->routing_table->table_size];
-	for (i = 0; i < mote->routing_table-> table_size; i++) {
-		hashmap_element elem = *(map+i);
-		if (elem.in_use && elem.typeMote == typeMote) { //todo: check les addresses aussi
-//			LOG_INFO("sending 30turnon to %u \n", elem.data.u16[0]);
-			if(!isInArray(dst, index, &elem.data)){
-//				LOG_INFO("sending 10turnon to %u \n", elem.data.u16[0]);			
-				dst[index] = elem.data;
-				index++;
-			}
-		}
-	}
-	for (i = 0; i < index; i++) {
-	//uint8_t typeMote, linkaddr_t src_addr, linkaddr_t dst_addr, linkaddr_t dest
-		send_TURNON(typeMote, message->src_addr ,message->dst_addr, dst[i]);
-	}
-	memset(dst, 0, sizeof(linkaddr_t)*index);
-	
+
+void send_LIGHT(uint8_t light_level, mote_t *mote){
+	LIGHT_message_t* message = (LIGHT_message_t*) malloc(LIGHT_size);
+	message->type = LIGHT;
+	message->light_level = light_level;
+	nullnet_buf = (uint8_t*) message;
+	nullnet_len = TURNON_size;
+
+	free(message);
+
+	NETSTACK_NETWORK.output(&(mote->parent->addr));
+
 }
 
 
-void send_ACK(uint8_t typeMote, linkaddr_t src_addr, linkaddr_t dst_addr, linkaddr_t dest) {
+void forward_LIGHT(LIGHT_message_t *message, mote_t *mote){
+	nullnet_buf = (uint8_t*) message;	
+	nullnet_len = LIGHT_size;
+	NETSTACK_NETWORK.output(&(mote->parent->addr));
+}
 
+void send_ACK(mote_t *mote) {
 //	LOG_INFO("sending turnon to %u\n ", dest.u16[0]);
 	ACK_message_t* message = (ACK_message_t*) malloc(ACK_size);
 	message->type = ACK;
-	message->typeMote = typeMote;
-	message->src_addr = src_addr;
-	message->dst_addr = dst_addr;
+	message->typeMote = mote->typeMote;
 	nullnet_buf = (uint8_t*) message;
 	nullnet_len = TURNON_size;
 
 	free(message);
 
-	NETSTACK_NETWORK.output(&dest);
+	NETSTACK_NETWORK.output(&(mote->parent->addr));
 }
 
 void forward_ACK(ACK_message_t *message, mote_t *mote){
@@ -341,10 +330,62 @@ void forward_ACK(ACK_message_t *message, mote_t *mote){
 	NETSTACK_NETWORK.output(&(mote->parent->addr));
 }
 
+void send_TURNON_root(uint8_t typeMote, mote_t *mote) {
+
+	//LOG_INFO("sending turnon in broadcast ");
+	TURNON_message_t* message = (TURNON_message_t*) malloc(TURNON_size);
+	message->type = TURNON;
+	message->typeMote = typeMote;
+	nullnet_buf = (uint8_t*) message;
+	nullnet_len = TURNON_size;
+
+	free(message);
+
+	NETSTACK_NETWORK.output(NULL);
+
+}
+
+
+void send_TURNOFF_root(uint8_t typeMote, mote_t *mote) {
+
+	//LOG_INFO("sending turnon in broadcast ");
+	TURNON_message_t* message = (TURNON_message_t*) malloc(TURNON_size);
+	message->type = TURNOFF;
+	message->typeMote = typeMote;
+	nullnet_buf = (uint8_t*) message;
+	nullnet_len = TURNON_size;
+
+	free(message);
+
+	NETSTACK_NETWORK.output(NULL);
+
+}
+
+void forward_TURNON(uint8_t typeMote, mote_t *mote) {	
+	// Address of the next-hop mote towards destination
+	
+	hashmap_element* map = mote->routing_table->data;
+	int i;
+	unsigned index = 0;
+	linkaddr_t dst[mote->routing_table->table_size];
+	for (i = 0; i < mote->routing_table-> table_size; i++) {
+		hashmap_element elem = *(map+i);
+		if (elem.in_use && elem.typeMote == typeMote) {
+			if(!isInArray(dst, index, &elem.data)){
+				dst[index] = elem.data;
+				index++;
+			}
+		}
+	}
+	for (i = 0; i < index; i++) {
+		send_TURNON(typeMote, dst[i], mote);
+	}
+	memset(dst, 0, sizeof(linkaddr_t)*index);
+}
+
 unsigned isInArray(linkaddr_t* dst, unsigned effectiveSize, linkaddr_t* val){
 	unsigned i = 0;
 	for (i = 0; i <= effectiveSize; i++){
-		//LOG_INFO("is %u equal to %u \n", dst[i].u16[0], val->u16[0]);
 		if (dst[i].u16[0] == val->u16[0]){
 			return 1;
 		}

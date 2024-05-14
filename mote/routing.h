@@ -50,8 +50,8 @@ const uint8_t DAO;
 const uint8_t DATA;
 const uint8_t TURNON;
 const uint8_t ACK;
-
-
+const uint8_t LIGHT;
+const uint8_t TURNOFF;
 
 
 // Size of control messages
@@ -61,6 +61,7 @@ const size_t DAO_size;
 const size_t DATA_size;
 const size_t TURNON_size;
 const size_t ACK_size;
+const size_t LIGHT_size;
 
 
 
@@ -115,21 +116,20 @@ typedef struct DATA_message {
 	uint16_t data;
 } DATA_message_t;
 
-typedef struct ACK_message {
-	uint8_t type;
-	linkaddr_t dst_addr;
-	linkaddr_t src_addr;
-	uint8_t typeMote;
-} ACK_message_t;
-
 typedef struct TURNON_message {
 	uint8_t type;
-	linkaddr_t src_addr;
-	linkaddr_t dst_addr;
 	uint8_t typeMote;
 } TURNON_message_t;
 
+typedef struct ACK_message {
+	uint8_t type;
+	uint8_t typeMote;
+} ACK_message_t;
 
+typedef struct LIGHT_message {
+	uint8_t type;
+	uint8_t light_level;
+} LIGHT_message_t;
 
 
 ///////////////////
@@ -204,11 +204,16 @@ void send_DATA(mote_t *mote);
  */
 void forward_DATA(DATA_message_t *message, mote_t *mote);
 
-void send_TURNON(uint8_t typeMote, linkaddr_t src_addr, linkaddr_t dst_addr, linkaddr_t dest);
+void send_TURNON(uint8_t typeMote, linkaddr_t dest, mote_t *mote);
 
-void forward_TURNON(TURNON_message_t * message, mote_t *mote);
-
-void send_ACK(uint8_t typeMote, linkaddr_t src_addr, linkaddr_t dst_addr, linkaddr_t dest);
-void forward_ACK(ACK_message_t *message, mote_t *mote);
+void forward_TURNON(uint8_t typeMote, mote_t *mote);
 
 unsigned isInArray(linkaddr_t* dst, unsigned effectiveSize, linkaddr_t *val);
+
+void send_TURNON_root(uint8_t typeMote, mote_t *mote);
+void send_TURNOFF_root(uint8_t typeMote, mote_t *mote);
+
+void send_ACK(mote_t *mote);
+void send_LIGHT(uint8_t light_level, mote_t *mote);
+void forward_LIGHT(LIGHT_message_t *message, mote_t *mote);
+void forward_ACK(ACK_message_t *message, mote_t *mote);

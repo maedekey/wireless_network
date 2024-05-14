@@ -46,13 +46,6 @@
  *  STRUCTURES DEFINITION
  * ======================= */
 
-
- typedef struct _ip_address_results{
-  linkaddr_t *ip_addresses;
-  int num_addresses;
-} ip_address_results;
-
-
 /** We need to keep keys and values
  * the key should be the node from which we received a message
  * the data should be the next-hop to get to the key node
@@ -168,8 +161,6 @@ extern int hashmap_length(hashmap_map *m);
  * Prints the content of the hashmap
  */
 extern void hashmap_print(hashmap_map *m);
-
-ip_address_results get_ip_addresses_by_type(hashmap_map *m, int target_type);
 
 /**
  * Removes entries that have timed out (based on arguments current_time and timeout_delay)
