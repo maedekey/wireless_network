@@ -207,6 +207,10 @@ void runicast_recv(const void* data, uint8_t len, const linkaddr_t *from) {
 		else{			
 			turnOnLightbulb();			  
 		}
+	}else if (type == ACK) {
+		ACK_message_t* message = (ACK_message_t*) data;
+		LOG_INFO("forwarding ACK\n");
+		forward_ACK(message,&mote);		
 	}else if (type == MAINT){
 		MAINT_message_t* message = (MAINT_message_t*) data;
 		LOG_INFO("forwarding MAINT\n");
