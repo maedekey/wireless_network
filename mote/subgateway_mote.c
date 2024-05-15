@@ -142,12 +142,14 @@ void children_callback(void *ptr) {
 
 
 /**
-Function that simulates watering the plants
+* Function that simulates the light bulb turn on
 */
 void turnOnLightbulb(){
 	printf("turning on light bulbs!!\n");
 }
-
+/**
+* Function that simulates the light bulb shutdown
+*/
 void turnOffLightbulb(){
 	printf("turning OFF light bulbs!!\n");
 }
@@ -215,24 +217,6 @@ void runicast_recv(const void* data, uint8_t len, const linkaddr_t *from) {
 	}
 
 }
-
-/**
- * Callback function, called when an unicast packet is sent
- */
-void runicast_sent(const linkaddr_t *to, uint8_t retransmissions) {
-	// Nothing to do
-}
-
-/**
- * Callback function, called when an unicast packet has timed out
- */
-void runicast_timeout(const linkaddr_t *to, uint8_t retransmissions) {
-	// Nothing to do
-}
-
-// Runicast callback functions
-//const struct runicast_callbacks runicast_callbacks = {runicast_recv, runicast_sent, runicast_timeout};
-
 
 
 //////////////////////////////
@@ -323,10 +307,9 @@ void broadcast_recv(const void* data, uint16_t len, const linkaddr_t *from) {
 	}
 
 }
-
-// Broadcast callback function
-//const struct broadcast_callbacks broadcast_call = {broadcast_recv};
-
+/**
+* Set callbacks for incoming messages
+*/
 void input_callback(const void *data, uint16_t len,
   const linkaddr_t *src, const linkaddr_t *dest)
 {
@@ -353,8 +336,6 @@ PROCESS_THREAD(sensor_mote, ev, data) {
 		trickle_init(&t_timer);
 		created = 1;
 	}
-
-//	PROCESS_EXITHANDLER(broadcast_close(&broadcast); runicast_close(&runicast);)
 
 	PROCESS_BEGIN();
 

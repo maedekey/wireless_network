@@ -116,26 +116,29 @@ typedef struct DAO_message {
 	uint8_t typeMote;
 } DAO_message_t;
 
+// Represents a LIGHT message with the light level
 typedef struct LIGHT_message {
 	uint8_t type;
 	uint16_t light_level;
 } LIGHT_message_t;
 
+// Represents a TURNON message with the mote type. It can be either sprinklers or light bulbs
 typedef struct TURNON_message {
 	uint8_t type;
 	uint8_t typeMote;
 } TURNON_message_t;
-
+// Represents an ACK message sent by a mote turned on
 typedef struct ACK_message {
 	uint8_t type;
 	uint8_t typeMote;
 } ACK_message_t;
-
+// Represents a maintenance message sent by te mobile terminal
 typedef struct MAINT_message {
 	uint8_t type;
 	linkaddr_t src_addr;
 } MAINT_message_t;
 
+// Represents an ack to the maintenance message
 typedef struct MAINTACK_message {
 	uint8_t type;
 	linkaddr_t dst_addr;
@@ -213,20 +216,48 @@ void send_LIGHT(mote_t *mote);
  */
 void forward_LIGHT(LIGHT_message_t *message, mote_t *mote);
 
+/**
+* Sends a TURNON message to the mote in param, including the typeMote given in param
+*/
 void send_TURNON(uint8_t typeMote, linkaddr_t dest, mote_t *mote);
 
+/**
+* forward TURNON message to all the motes of the given typeMote known locally
+*/
 void forward_TURNON(uint8_t typeMote, mote_t *mote);
 
+/**
+* Checks if an addr is already in a table of addresses. Used in the multicast to send only one message per next hop instead of sending one message per final destination
+*/
 unsigned isInArray(linkaddr_t* dst, unsigned effectiveSize, linkaddr_t *val);
 
+/**
+* Sends an ACK message to the parent of the mote
+*/
 void send_ACK(mote_t *mote);
 
+/**
+* forwards an ACK message to the parent of the mote
+*/
 void forward_ACK(ACK_message_t *message, mote_t *mote);
 
+/**
+* Sends a MAINT message to the mote in param, including the src addr given in the message
+*/
 void send_MAINT(linkaddr_t src_addr, linkaddr_t dest, mote_t *mote);
 
+/**
+* Forwards a MAINT message to the to the light bulb or the path of the light bulb.
+* If the light bulb is not known locally, it is sent to the parent mote.
+*/
 void forward_MAINT(linkaddr_t src_addr, mote_t *mote);
 
+/**
+* Send a MAINACK message to the dest addr given. If the dest mote (the mobile terminal) is not known locally, it is sent to the parent of the mote
+*/
 void send_MAINTACK(mote_t *mote, linkaddr_t dst_addr);
 
+/**
+* Forwards a MAINACK message to the dest addr given in the message. If the dest mote (the mobile terminal) is not known locally, it is sent to the parent of the mote
+*/
 void forward_MAINTACK(MAINTACK_message_t *message, mote_t *mote);

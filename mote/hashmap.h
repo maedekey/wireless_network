@@ -49,6 +49,7 @@
 /** We need to keep keys and values
  * the key should be the node from which we received a message
  * the data should be the next-hop to get to the key node
+ * the typeMote should be the type of the key node
  */
 typedef struct _hashmap_element{
 	uint16_t key;

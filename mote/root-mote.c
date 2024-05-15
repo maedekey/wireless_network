@@ -23,12 +23,6 @@ uint8_t created = 0;
 // Trickle timer for the periodic messages
 trickle_timer_t t_timer;
 
-// Broadcast connection
-//static struct broadcast_conn broadcast;
-
-// Reliable unicast (runicast) connection
-//static struct runicast_conn runicast;
-
 
 
 /////////////////////////
@@ -154,23 +148,6 @@ void runicast_recv(const void* data, uint8_t len, const linkaddr_t *from) {
 
 }
 
-/**
- * Callback function, called when an unicast packet is sent
- */
-void runicast_sent(const linkaddr_t *to, uint8_t retransmissions) {
-	// Nothing to do
-}
-
-/**
- * Callback function, called when an unicast packet has timed out
- */
-void runicast_timeout(const linkaddr_t *to, uint8_t retransmissions) {
-	// Nothing to do
-}
-
-//const struct runicast_callbacks runicast_callbacks = {runicast_recv, runicast_sent, runicast_timeout};
-
-
 //////////////////////////////
 ///  BROADCAST CONNECTION  ///
 //////////////////////////////
@@ -192,8 +169,10 @@ void broadcast_recv(const void* data, uint16_t len, const linkaddr_t *from) {
 	}
 }
 
-//const struct broadcast_callbacks broadcast_call = {broadcast_recv};
 
+/**
+* Send a MAINACK message to the dest addr given. If the dest mote (the mobile terminal) is not known locally, it is sent to the parent of the mote
+*/
 void input_callback(const void *data, uint16_t len,
   const linkaddr_t *src, const linkaddr_t *dest)
 {
@@ -222,8 +201,6 @@ PROCESS_THREAD(root_mote, ev, data) {
 		trickle_init(&t_timer);
 		created = 1;
 	}
-
-//	PROCESS_EXITHANDLER(broadcast_close(&broadcast); runicast_close(&runicast);)
 
 	PROCESS_BEGIN();
 

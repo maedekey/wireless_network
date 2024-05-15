@@ -280,7 +280,9 @@ void forward_LIGHT(LIGHT_message_t *message, mote_t *mote) {
 	nullnet_len = LIGHT_size;
 	NETSTACK_NETWORK.output(&(mote->parent->addr));
 }
-
+/**
+* Sends a TURNON message to the mote in param, including the typeMote given in param
+*/
 void send_TURNON(uint8_t typeMote, linkaddr_t dest, mote_t *mote) {
 
 	LOG_INFO("sending turnon to %u\n ", dest.u16[0]);
@@ -295,7 +297,9 @@ void send_TURNON(uint8_t typeMote, linkaddr_t dest, mote_t *mote) {
 	NETSTACK_NETWORK.output(&dest);
 }
 
-
+/**
+* Sends an ACK message to the parent of the mote
+*/
 void send_ACK(mote_t *mote) {
 	LOG_INFO("sending ack to parent \n ");
 	ACK_message_t* message = (ACK_message_t*) malloc(ACK_size);
@@ -308,13 +312,17 @@ void send_ACK(mote_t *mote) {
 
 	NETSTACK_NETWORK.output(&(mote->parent->addr));
 }
-
+/**
+* forwards an ACK message to the parent of the mote
+*/
 void forward_ACK(ACK_message_t *message, mote_t *mote){
 	nullnet_buf = (uint8_t*) message;	
 	nullnet_len = ACK_size;
 	NETSTACK_NETWORK.output(&(mote->parent->addr));
 }
-
+/**
+* forward TURNON message to all the motes of the given typeMote known locally
+*/
 void forward_TURNON(uint8_t typeMote, mote_t *mote) {	
 	// Address of the next-hop mote towards destination
 
@@ -337,6 +345,9 @@ void forward_TURNON(uint8_t typeMote, mote_t *mote) {
 	memset(dst, 0, sizeof(linkaddr_t)*index);
 }
 
+/**
+* Sends a MAINT message to the mote in param, including the src addr given in the message
+*/
 void send_MAINT(linkaddr_t src_addr, linkaddr_t dest, mote_t *mote){
 	LOG_INFO("sending maintenance to %u\n ", dest.u16[0]);
 	MAINT_message_t* message = (MAINT_message_t*) malloc(MAINT_size);
@@ -349,6 +360,11 @@ void send_MAINT(linkaddr_t src_addr, linkaddr_t dest, mote_t *mote){
 
 	NETSTACK_NETWORK.output(&dest);
 }
+
+/**
+* Forwards a MAINT message to the to the light bulb or the path of the light bulb.
+* If the light bulb is not known locally, it is sent to the parent mote.
+*/
 
 void forward_MAINT(linkaddr_t src_addr, mote_t *mote){
 	hashmap_element* map = mote->routing_table->data;
@@ -372,6 +388,9 @@ void forward_MAINT(linkaddr_t src_addr, mote_t *mote){
 	}
 }
 
+/**
+* Send a MAINACK message to the dest addr given. If the dest mote (the mobile terminal) is not known locally, it is sent to the parent of the mote
+*/
 void send_MAINTACK(mote_t *mote, linkaddr_t dst_addr){
 	LOG_INFO("sending maintenance ack \n ");
 	MAINTACK_message_t* message = (MAINTACK_message_t*) malloc(MAINTACK_size);
@@ -392,7 +411,9 @@ void send_MAINTACK(mote_t *mote, linkaddr_t dst_addr){
 
 	NETSTACK_NETWORK.output(&nexthop);
 }
-
+/**
+* Forwards a MAINACK message to the dest addr given in the message. If the dest mote (the mobile terminal) is not known locally, it is sent to the parent of the mote
+*/
 void forward_MAINTACK(MAINTACK_message_t *message, mote_t *mote){
 	LOG_INFO("forwarding maintenance ack \n ");
 	linkaddr_t nexthop;
@@ -406,7 +427,9 @@ void forward_MAINTACK(MAINTACK_message_t *message, mote_t *mote){
 	
 }
 
-
+/**
+* Checks if an addr is already in a table of addresses. Used in the multicast to send only one message per next hop instead of sending one message per final destination
+*/
 unsigned isInArray(linkaddr_t* dst, unsigned effectiveSize, linkaddr_t* val){
 	unsigned i = 0;
 	for (i = 0; i <= effectiveSize; i++){
