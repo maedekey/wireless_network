@@ -247,7 +247,7 @@ AUTOSTART_PROCESSES(&sensor_mote);
 PROCESS_THREAD(sensor_mote, ev, data) {
 
 	if (!created) {
-		init_mote(&mote, 2);
+		init_mote(&mote, 5);
 		trickle_init(&t_timer);
 		created = 1;
 	}
