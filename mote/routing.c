@@ -16,8 +16,11 @@
 const uint8_t DIS = 2;
 const uint8_t DIO = 3;
 const uint8_t DAO = 4;
-const uint8_t DATA = 0;
 const uint8_t TURNON = 5;
+const uint8_t ACK = 6;
+const uint8_t LIGHT = 7;
+const uint8_t MAINT = 8;
+const uint8_t MAINTACK = 9;
 
 
 
@@ -25,10 +28,11 @@ const uint8_t TURNON = 5;
 const size_t DIS_size = sizeof(DIS_message_t);
 const size_t DIO_size = sizeof(DIO_message_t);
 const size_t DAO_size = sizeof(DAO_message_t);
-const size_t DATA_size = sizeof(DATA_message_t);
 const size_t TURNON_size = sizeof(TURNON_message_t);
-
-
+const size_t LIGHT_size = sizeof(LIGHT_message_t);
+const size_t ACK_size = sizeof(ACK_message_t);
+const size_t MAINT_size = sizeof(MAINT_message_t);
+const size_t MAINTACK_size = sizeof(MAINTACK_message_t);
 
 ///////////////////
 ///  FUNCTIONS  ///
@@ -46,36 +50,19 @@ void init_mote(mote_t *mote, uint8_t typeMote) {
 	mote->routing_table = hashmap_new();
 
 	if (!mote->routing_table) {
-		LOG_INFO("init_mote() of mote with address %u.%u : could not allocate enough memory\n", (mote->addr).u8[0], (mote->addr).u8[1]);
 		exit(-1);
 	}
-
-	mote->in_dodag = 0;
-	mote->rank = INFINITE_RANK;
+	if (typeMote == 0){
+		mote->in_dodag = 1;
+		mote->rank = 0;
+	}else{
+		mote->in_dodag = 0;
+		mote->rank = INFINITE_RANK;		
+	}
 	mote->typeMote = typeMote;
 
 }
 
-/**
- * Initializes the attributes of a root mote.
- */
-void init_root(mote_t *mote, uint8_t typeMote) {
-
-	// Set the Rime address
-	linkaddr_copy(&(mote->addr), &linkaddr_node_addr);
-
-	// Initialize routing table
-	mote->routing_table = hashmap_new();
-
-	if (!mote->routing_table) {
-		LOG_INFO("init_root() of mote with address %u.%u : could not allocate enough memory\n", (mote->addr).u8[0], (mote->addr).u8[1]);
-		exit(-1);
-	}
-
-	mote->in_dodag = 1;
-	mote->rank = 0;
-	mote->typeMote = typeMote;
-}
 
 /**
  * Initializes the parent of a mote.
@@ -213,7 +200,7 @@ void send_DAO(mote_t *mote) {
 void forward_DAO(DAO_message_t *message, mote_t *mote) {
 	nullnet_buf = (uint8_t*) message;	
 	nullnet_len = DAO_size;
-	
+
 	NETSTACK_NETWORK.output(&(mote->parent->addr));
 }
 
@@ -224,7 +211,11 @@ void forward_DAO(DAO_message_t *message, mote_t *mote) {
  * in an unstable network.
  */
 uint8_t is_better_parent(mote_t *mote, uint8_t parent_rank, signed char rss, uint8_t typeMote) {
-	if(mote->typeMote == 2 && typeMote > 0){
+	if (mote->typeMote == 1 && typeMote != 0){
+		return 0;
+	}else if (mote->typeMote > 1 && typeMote == 0) {
+		return 0;
+	}else if(mote->typeMote > 1){
 		if (mote->parent->typeMote == typeMote){
 			uint8_t lower_rank = parent_rank < mote->parent->rank;
 			uint8_t same_rank = parent_rank == mote->parent->rank;
@@ -233,8 +224,6 @@ uint8_t is_better_parent(mote_t *mote, uint8_t parent_rank, signed char rss, uin
 		}else{
 			return mote->parent->typeMote > typeMote;
 		}
-	}else if (mote->typeMote == 1 && typeMote != 0){
-		return 0;
 	}
 	return 0;
 }
@@ -244,11 +233,15 @@ uint8_t is_better_parent(mote_t *mote, uint8_t parent_rank, signed char rss, uin
  */
 uint8_t choose_parent(mote_t *mote, const linkaddr_t* parent_addr, uint8_t parent_rank, signed char rss, uint8_t typeMote) {
 	if (!mote->in_dodag) {
-		if (!(mote->typeMote == 2 && typeMote == 0)){ 
+		if (mote->typeMote > 1 && typeMote != 0){ 
 			// Mote not in DODAG yet, initialize parent
 			init_parent(mote, parent_addr, parent_rank, rss, typeMote);
 			return PARENT_NEW;
+		} else if (mote->typeMote == 1 && typeMote == 0){
+			init_parent(mote, parent_addr, parent_rank, rss, typeMote);
+			return PARENT_NEW;
 		}
+
 	} else if (is_better_parent(mote, parent_rank, rss, typeMote)) {
 		// Better parent found, change parent
 		change_parent(mote, parent_addr, parent_rank, rss, typeMote);
@@ -261,17 +254,16 @@ uint8_t choose_parent(mote_t *mote, const linkaddr_t* parent_addr, uint8_t paren
 }
 
 /**
- * Sends a DATA message, containing a random value, to the parent of the mote.
+ * Sends a LIGHT message, containing a random value, to the parent of the mote.
  */
-void send_DATA(mote_t *mote) {
+void send_LIGHT(mote_t *mote) {
 
-	DATA_message_t *message = (DATA_message_t*) malloc(DATA_size);
-	message->type = DATA;
-	message->src_addr = mote->addr;
-	message->data = (uint16_t) (random_rand() % 501); // US A.Q.I. goes from 0 to 500
-	
+	LIGHT_message_t *message = (LIGHT_message_t*) malloc(LIGHT_size);
+	message->type = LIGHT;
+	message->light_level = (uint16_t) (random_rand() % 250);
+
 	nullnet_buf = (uint8_t*) message;
-	nullnet_len = DATA_size;
+	nullnet_len = LIGHT_size;
 
 	free(message);
 
@@ -280,47 +272,161 @@ void send_DATA(mote_t *mote) {
 }
 
 /**
- * Forwards a DATA message to the parent of the mote.
+ * Forwards a LIGHT message to the parent of the mote.
  */
-void forward_DATA(DATA_message_t *message, mote_t *mote) {
+void forward_LIGHT(LIGHT_message_t *message, mote_t *mote) {
 	nullnet_buf = (uint8_t*) message;	
-	nullnet_len = DATA_size;
+	nullnet_len = LIGHT_size;
 	NETSTACK_NETWORK.output(&(mote->parent->addr));
 }
+/**
+* Sends a TURNON message to the mote in param, including the typeMote given in param
+*/
+void send_TURNON(uint8_t typeMote, linkaddr_t dest, mote_t *mote) {
+	TURNON_message_t* message = (TURNON_message_t*) malloc(TURNON_size);
+	message->type = TURNON;
+	message->typeMote = typeMote;
+	nullnet_buf = (uint8_t*) message;
+	nullnet_len = TURNON_size;
 
-void send_TURNON(linkaddr_t dst_addr, mote_t *mote) {
+	free(message);
+
+	NETSTACK_NETWORK.output(&dest);
+}
+
+/**
+* Sends an ACK message to the parent of the mote
+*/
+void send_ACK(mote_t *mote) {
+	ACK_message_t* message = (ACK_message_t*) malloc(ACK_size);
+	message->type = ACK;
+	message->typeMote = mote->typeMote;
+	nullnet_buf = (uint8_t*) message;
+	nullnet_len = ACK_size;
+
+	free(message);
+
+	NETSTACK_NETWORK.output(&(mote->parent->addr));
+}
+/**
+* forwards an ACK message to the parent of the mote
+*/
+void forward_ACK(ACK_message_t *message, mote_t *mote){
+	nullnet_buf = (uint8_t*) message;	
+	nullnet_len = ACK_size;
+	NETSTACK_NETWORK.output(&(mote->parent->addr));
+}
+/**
+* forward TURNON message to all the motes of the given typeMote known locally
+*/
+void forward_TURNON(uint8_t typeMote, mote_t *mote) {	
 	// Address of the next-hop mote towards destination
-	linkaddr_t next_hop;
-	if (hashmap_get(mote->routing_table, dst_addr, &next_hop) == MAP_OK) {
-		// Node is correctly in the routing table
-		TURNON_message_t* message = (TURNON_message_t*) malloc(TURNON_size);
-		message->type = TURNON;
-		message->dst_addr = dst_addr;
-		nullnet_buf = (uint8_t*) message;
-		nullnet_len = DATA_size;
 
-		free(message);
+	hashmap_element* map = mote->routing_table->data;
+	int i;
+	unsigned index = 0;
+	linkaddr_t dst[mote->routing_table->table_size];
+	for (i = 0; i < mote->routing_table-> table_size; i++) {
+		hashmap_element elem = *(map+i);
+		if (elem.in_use && elem.typeMote == typeMote) {
+			if(!isInArray(dst, index, &elem.data)){
+				dst[index] = elem.data;
+				index++;
+			}
+		}
+	}
+	for (i = 0; i < index; i++) {
+		send_TURNON(typeMote, dst[i], mote);
+	}
+	memset(dst, 0, sizeof(linkaddr_t)*index);
+}
 
-		NETSTACK_NETWORK.output(&next_hop);
-	} else {
-		// Destination mote wasn't present in routing table
-		LOG_INFO("Mote not in routing table.\n");
+/**
+* Sends a MAINT message to the mote in param, including the src addr given in the message
+*/
+void send_MAINT(linkaddr_t src_addr, linkaddr_t dest, mote_t *mote){
+	MAINT_message_t* message = (MAINT_message_t*) malloc(MAINT_size);
+	message->type = MAINT;
+	message->src_addr = src_addr;
+	nullnet_buf = (uint8_t*) message;
+	nullnet_len = MAINT_size;
+
+	free(message);
+
+	NETSTACK_NETWORK.output(&dest);
+}
+
+/**
+* Forwards a MAINT message to the to the light bulb or the path of the light bulb.
+* If the light bulb is not known locally, it is sent to the parent mote.
+*/
+
+void forward_MAINT(linkaddr_t src_addr, mote_t *mote){
+	hashmap_element* map = mote->routing_table->data;
+	int i;
+	int cpt = 0;
+	linkaddr_t dst;
+	for (i = 0; i < mote->routing_table->table_size; i++) {
+		hashmap_element elem = *(map+i);
+		if (elem.in_use && elem.typeMote == 2) {
+			dst = elem.data;
+			cpt = 1;
+			break;
+		}	
+	}	
+	if (cpt == 0){
+		send_MAINT(src_addr, mote->parent->addr, mote);	
+	}else{
+		send_MAINT(src_addr, dst, mote);	
 	}
 }
 
-void forward_TURNON(TURNON_message_t *message, mote_t *mote) {
-	// Address of the next-hop mote towards destination
-	linkaddr_t next_hop;
-	if (hashmap_get(mote->routing_table, message->dst_addr, &next_hop) == MAP_OK) {
-		// Forward to next_hop
-		nullnet_buf = (uint8_t*) message;
-		nullnet_len = TURNON_size;
-
-		free(message);
-
-		NETSTACK_NETWORK.output(&next_hop);
-	} else {
-		LOG_INFO("Error in forwarding TURNON message.\n");
+/**
+* Send a MAINACK message to the dest addr given. If the dest mote (the mobile terminal) is not known locally, it is sent to the parent of the mote
+*/
+void send_MAINTACK(mote_t *mote, linkaddr_t dst_addr){
+	MAINTACK_message_t* message = (MAINTACK_message_t*) malloc(MAINTACK_size);
+	message->type = MAINTACK;
+	message->dst_addr = dst_addr;
+	
+	linkaddr_t nexthop;
+	uint8_t typeMote;
+	if(hashmap_get(mote->routing_table, dst_addr, &typeMote, &nexthop) != MAP_OK){
+		nexthop = mote->parent->addr;
 	}
+	
+	
+	nullnet_buf = (uint8_t*) message;
+	nullnet_len = MAINTACK_size;
+
+	free(message);
+
+	NETSTACK_NETWORK.output(&nexthop);
+}
+/**
+* Forwards a MAINACK message to the dest addr given in the message. If the dest mote (the mobile terminal) is not known locally, it is sent to the parent of the mote
+*/
+void forward_MAINTACK(MAINTACK_message_t *message, mote_t *mote){
+	linkaddr_t nexthop;
+	uint8_t typeMote;
+	if(hashmap_get(mote->routing_table, message->dst_addr, &typeMote, &nexthop) != MAP_OK){
+		nexthop = mote->parent->addr;
+	}
+	nullnet_buf = (uint8_t*) message;	
+	nullnet_len = MAINTACK_size;
+	NETSTACK_NETWORK.output(&nexthop);
+	
 }
 
+/**
+* Checks if an addr is already in a table of addresses. Used in the multicast to send only one message per next hop instead of sending one message per final destination
+*/
+unsigned isInArray(linkaddr_t* dst, unsigned effectiveSize, linkaddr_t* val){
+	unsigned i = 0;
+	for (i = 0; i <= effectiveSize; i++){
+		if (dst[i].u16[0] == val->u16[0]){
+			return 1;
+		}
+	}
+	return 0;
+}

@@ -42,23 +42,33 @@
 // Timeout value to detach from unresponsive parent
 #define TIMEOUT_PARENT 50
 
+#define TIMEOUT_LIGHT 120
+
+#define TIMEOUT_WATER 180
+
+
+
 
 // Values for the different types of messages
 const uint8_t DIS;
 const uint8_t DIO;
 const uint8_t DAO;
-const uint8_t DATA;
+const uint8_t LIGHT;
 const uint8_t TURNON;
-
-
+const uint8_t ACK;
+const uint8_t MAINT;
+const uint8_t MAINTACK;
 
 
 // Size of control messages
 const size_t DIS_size;
 const size_t DIO_size;
 const size_t DAO_size;
-const size_t DATA_size;
+const size_t LIGHT_size;
 const size_t TURNON_size;
+const size_t ACK_size;
+const size_t MAINT_size;
+const size_t MAINTACK_size;
 
 
 
@@ -106,20 +116,33 @@ typedef struct DAO_message {
 	uint8_t typeMote;
 } DAO_message_t;
 
-// Represents a DATA message, that carries the data from a sensor mote to the server
-typedef struct DATA_message {
+// Represents a LIGHT message with the light level
+typedef struct LIGHT_message {
 	uint8_t type;
-	linkaddr_t src_addr;
-	uint16_t data;
-} DATA_message_t;
+	uint16_t light_level;
+} LIGHT_message_t;
 
+// Represents a TURNON message with the mote type. It can be either sprinklers or light bulbs
 typedef struct TURNON_message {
 	uint8_t type;
-	linkaddr_t dst_addr;
 	uint8_t typeMote;
 } TURNON_message_t;
+// Represents an ACK message sent by a mote turned on
+typedef struct ACK_message {
+	uint8_t type;
+	uint8_t typeMote;
+} ACK_message_t;
+// Represents a maintenance message sent by te mobile terminal
+typedef struct MAINT_message {
+	uint8_t type;
+	linkaddr_t src_addr;
+} MAINT_message_t;
 
-
+// Represents an ack to the maintenance message
+typedef struct MAINTACK_message {
+	uint8_t type;
+	linkaddr_t dst_addr;
+} MAINTACK_message_t;
 
 ///////////////////
 ///  FUNCTIONS  ///
@@ -183,16 +206,58 @@ void forward_DAO(DAO_message_t *message, mote_t *mote);
 uint8_t choose_parent(mote_t *mote, const linkaddr_t* parent_addr, uint8_t parent_rank, signed char rss, uint8_t typeMote);
 
 /**
- * Sends a DATA message, containing a random value, to the parent of the mote.
+ * Sends a LIGHT message, containing a random value, to the parent of the mote.
  */
-void send_DATA(mote_t *mote);
+void send_LIGHT(mote_t *mote);
 
 
 /**
- * Forwards a DATA message to the parent of the mote.
+ * Forwards a LIGHT message to the parent of the mote.
  */
-void forward_DATA(DATA_message_t *message, mote_t *mote);
+void forward_LIGHT(LIGHT_message_t *message, mote_t *mote);
 
-void send_TURNON(linkaddr_t dst_addr, mote_t *mote);
+/**
+* Sends a TURNON message to the mote in param, including the typeMote given in param
+*/
+void send_TURNON(uint8_t typeMote, linkaddr_t dest, mote_t *mote);
 
-void forward_TURNON(TURNON_message_t *message, mote_t *mote);
+/**
+* forward TURNON message to all the motes of the given typeMote known locally
+*/
+void forward_TURNON(uint8_t typeMote, mote_t *mote);
+
+/**
+* Checks if an addr is already in a table of addresses. Used in the multicast to send only one message per next hop instead of sending one message per final destination
+*/
+unsigned isInArray(linkaddr_t* dst, unsigned effectiveSize, linkaddr_t *val);
+
+/**
+* Sends an ACK message to the parent of the mote
+*/
+void send_ACK(mote_t *mote);
+
+/**
+* forwards an ACK message to the parent of the mote
+*/
+void forward_ACK(ACK_message_t *message, mote_t *mote);
+
+/**
+* Sends a MAINT message to the mote in param, including the src addr given in the message
+*/
+void send_MAINT(linkaddr_t src_addr, linkaddr_t dest, mote_t *mote);
+
+/**
+* Forwards a MAINT message to the to the light bulb or the path of the light bulb.
+* If the light bulb is not known locally, it is sent to the parent mote.
+*/
+void forward_MAINT(linkaddr_t src_addr, mote_t *mote);
+
+/**
+* Send a MAINACK message to the dest addr given. If the dest mote (the mobile terminal) is not known locally, it is sent to the parent of the mote
+*/
+void send_MAINTACK(mote_t *mote, linkaddr_t dst_addr);
+
+/**
+* Forwards a MAINACK message to the dest addr given in the message. If the dest mote (the mobile terminal) is not known locally, it is sent to the parent of the mote
+*/
+void forward_MAINTACK(MAINTACK_message_t *message, mote_t *mote);
